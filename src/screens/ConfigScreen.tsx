@@ -1,149 +1,239 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, Alert, SafeAreaView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
-export const ConfigScreen = ({ navigation }: any) => {
-  const [phMin, setPhMin] = useState('5.5');
-  const [phMax, setPhMax] = useState('6.5');
-  const [humMin, setHumMin] = useState('40');
+export const ConfigScreen = () => {
+  const { theme } = useTheme();
+  
+  // Conexiones Locales variables
+  const [wifiEnabled, setWifiEnabled] = useState(true);
+  const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
+  
+  // ThingSpeak API variables
+  const [channelId, setChannelId] = useState('1234567');
+  const [writeApiKey, setWriteApiKey] = useState('');
+  const [readApiKey, setReadApiKey] = useState('');
 
-  const handleSave = () => {
-    // Aquí se guardarían los límites en la base de datos o AsyncStorage
-    navigation.goBack();
+  const handleSaveAndTest = () => {
+    // Simulando una prueba de conexión HTTP a ThingSpeak y la configuración de adaptadores
+    Alert.alert(
+      "Conexión Exitosa", 
+      "Se ha conectado correctamente a ThingSpeak y la configuración ha sido guardada.",
+      [{ text: "OK" }]
+    );
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Configuración</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Configuración</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>Dispositivo y Nube</Text>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Límites de pH (Válvula 1)</Text>
-        <Text style={styles.description}>Si el pH se sale de este rango óptimo, se activará la Válvula 1 para inyectar nutrientes.</Text>
-        <View style={styles.row}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Mínimo</Text>
-            <TextInput style={styles.input} value={phMin} onChangeText={setPhMin} keyboardType="numeric" placeholderTextColor="#94A3B8" />
+        {/* Sección 1: Conexiones Locales */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>CONEXIONES DEL DISPOSITIVO</Text>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={[styles.row, styles.borderBottom, { borderBottomColor: theme.colors.border }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.primary}20` }]}>
+                <Ionicons name="wifi" size={20} color={theme.colors.primary} />
+              </View>
+              <View>
+                <Text style={[styles.settingTitle, { color: theme.colors.text }]}>Wi-Fi</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>
+                  {wifiEnabled ? 'Conectado a "Red_Invernadero"' : 'Apagado'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={wifiEnabled}
+              onValueChange={setWifiEnabled}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Máximo</Text>
-            <TextInput style={styles.input} value={phMax} onChangeText={setPhMax} keyboardType="numeric" placeholderTextColor="#94A3B8" />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.secondary}20` }]}>
+                <Ionicons name="bluetooth" size={20} color={theme.colors.secondary} />
+              </View>
+              <View>
+                <Text style={[styles.settingTitle, { color: theme.colors.text }]}>Bluetooth LE</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>
+                  {bluetoothEnabled ? 'Encendido' : 'Apagado'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={bluetoothEnabled}
+              onValueChange={setBluetoothEnabled}
+              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+              thumbColor="#FFFFFF"
+            />
           </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Humedad (Válvula 2)</Text>
-        <Text style={styles.description}>Si la humedad cae por debajo de este valor, se activará la Válvula 2 (Riego).</Text>
-        <View style={styles.inputContainerFull}>
-          <Text style={styles.label}>Mínimo (%)</Text>
-          <TextInput style={styles.input} value={humMin} onChangeText={setHumMin} keyboardType="numeric" placeholderTextColor="#94A3B8" />
+        {/* Sección 2: API de ThingSpeak */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>API DE THINGSPEAK</Text>
         </View>
-      </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Guardar Configuración</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={[styles.row, { marginBottom: 16 }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.secondary}20` }]}>
+                <Ionicons name="cloud" size={20} color={theme.colors.secondary} />
+              </View>
+              <View>
+                <Text style={[styles.settingTitle, { color: theme.colors.secondary }]}>Credenciales</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.colors.textSecondary }]}>Para enviar y leer gráficos</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Channel ID</Text>
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
+            <TextInput
+              style={[styles.input, { color: theme.colors.text }]}
+              value={channelId}
+              onChangeText={setChannelId}
+              keyboardType="numeric"
+              placeholderTextColor={theme.colors.textSecondary}
+              placeholder="Ej: 1234567"
+            />
+          </View>
+
+          <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Read API Key (Para gráficas)</Text>
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
+            <TextInput
+              style={[styles.input, { color: theme.colors.text }]}
+              value={readApiKey}
+              onChangeText={setReadApiKey}
+              placeholderTextColor={theme.colors.textSecondary}
+              placeholder="Clave de lectura (Opcional si es público)"
+            />
+          </View>
+
+          <Text style={[styles.inputLabel, { color: theme.colors.textSecondary }]}>Write API Key (Para guardar)</Text>
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, marginBottom: 24 }]}>
+            <TextInput
+              style={[styles.input, { color: theme.colors.text }]}
+              value={writeApiKey}
+              onChangeText={setWriteApiKey}
+              placeholderTextColor={theme.colors.textSecondary}
+              placeholder="Clave de escritura"
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.saveButton, { backgroundColor: theme.colors.primary }]} 
+            onPress={handleSaveAndTest}
+          >
+            <Ionicons name="save-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.saveButtonText}>Guardar y Probar Conexión</Text>
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    padding: 24,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 100,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 32,
-  },
-  backText: {
-    color: '#0C6E84',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  title: {
-    color: '#63B72C',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderRadius: 24,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#94A3B8',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 5,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+  },
+  sectionHeader: {
+    marginBottom: 8,
+    marginTop: 8,
   },
   sectionTitle: {
-    color: '#1E293B',
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
-  description: {
-    color: '#64748B',
-    fontSize: 14,
-    marginBottom: 20,
-    fontWeight: '500',
-    lineHeight: 20,
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 24,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  borderBottom: {
+    borderBottomWidth: 1,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  settingSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginLeft: 4,
   },
   inputContainer: {
-    width: '48%',
-  },
-  inputContainerFull: {
-    width: '100%',
-  },
-  label: {
-    color: '#64748B',
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '600',
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    padding: 16,
-    color: '#0F172A',
-    fontSize: 16,
-    fontWeight: '600',
+    padding: 14,
+    fontSize: 14,
   },
   saveButton: {
-    backgroundColor: '#63B72C',
-    padding: 18,
-    borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 40,
-    shadowColor: '#63B72C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 4,
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
   },
   saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-  }
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });

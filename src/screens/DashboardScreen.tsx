@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
-import { supabase } from '../services/supabase';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated, Platform, SafeAreaView } from 'react-native';
 import { SensorService, SensorData } from '../services/SensorService';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
-export const DashboardScreen = ({ navigation }: any) => {
+export const DashboardScreen = () => {
   const [latestData, setLatestData] = useState<SensorData | null>(null);
+  const { theme } = useTheme();
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     SensorService.getHistory(1).then((data) => {
@@ -16,64 +18,111 @@ export const DashboardScreen = ({ navigation }: any) => {
       setLatestData(newRecord);
     });
 
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.4,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
     return () => {
       unsubscribe();
     };
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
   const isSystemOk = latestData ? (latestData.ph >= 5.5 && latestData.ph <= 6.5) : true;
 
+  const getProgressWidth = (value: number, max: number) => {
+    const clamped = Math.min(Math.max(value, 0), max);
+    return `${(clamped / max) * 100}%`;
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>General</Text>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#64748B" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.statusCard, isSystemOk ? styles.statusOk : styles.statusAlert]}>
-          <View style={styles.statusTextContainer}>
-            <Text style={styles.statusLabel}>Estado del Sistema</Text>
-            <Text style={styles.statusValue}>{isSystemOk ? 'Sistema OK' : 'Alerta'}</Text>
-          </View>
-          <View style={[styles.statusIndicator, isSystemOk ? styles.indicatorOk : styles.indicatorAlert]} />
-        </View>
-
-        <View style={styles.grid}>
-          <SensorCard icon="water-outline" title="pH" value={latestData?.ph.toFixed(2) ?? '--'} color="#3B82F6" />
-          <SensorCard icon="leaf-outline" title="Humedad" value={latestData?.humidity.toFixed(1) ?? '--'} unit="%" color="#22C55E" />
-          <SensorCard icon="flash-outline" title="Conductividad" value={latestData?.conductivity.toFixed(1) ?? '--'} unit=" mS/cm" color="#F59E0B" />
-          <SensorCard icon="analytics-outline" title="Salinidad" value={latestData?.salinity.toFixed(1) ?? '--'} unit=" ppm" color="#8B5CF6" />
-        </View>
-
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('History')}>
-          <Ionicons name="time-outline" size={22} color="#1E40AF" style={styles.buttonIcon} />
-          <Text style={styles.actionButtonText}>Ver Historial de Datos</Text>
-        </TouchableOpacity>
         
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Config')}>
-          <Ionicons name="settings-outline" size={22} color="#1E40AF" style={styles.buttonIcon} />
-          <Text style={styles.actionButtonText}>Configuración de Válvulas</Text>
-        </TouchableOpacity>
+        {/* Network Status Banner */}
+        <View style={[styles.networkBanner, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View>
+            <Text style={[styles.networkSubtitle, { color: theme.colors.textSecondary }]}>ESTADO DE RED</Text>
+            <View style={styles.networkStatusContainer}>
+              <Animated.View style={[
+                styles.pulseDot, 
+                { backgroundColor: isSystemOk ? theme.colors.primary : theme.colors.error, opacity: pulseAnim }
+              ]} />
+              <Text style={[styles.networkTitle, { color: theme.colors.text }]}>
+                {isSystemOk ? 'SISTEMA OK' : 'ALERTA'}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="cellular" size={28} color={theme.colors.primary} />
+        </View>
+
+        {/* 2x2 Bento Box Grid */}
+        <View style={styles.grid}>
+          <SensorCard 
+            icon="water-outline" 
+            title="pH del Agua" 
+            value={latestData?.ph.toFixed(1) ?? '--'} 
+            unit="pH" 
+            color="#06B6D4" // Cyan
+            progress={getProgressWidth(latestData?.ph ?? 0, 14)}
+            theme={theme}
+          />
+          <SensorCard 
+            icon="leaf-outline" 
+            title="Humedad Rel." 
+            value={latestData?.humidity.toFixed(0) ?? '--'} 
+            unit="%" 
+            color="#10B981" // Emerald
+            progress={getProgressWidth(latestData?.humidity ?? 0, 100)}
+            theme={theme}
+          />
+          <SensorCard 
+            icon="flash-outline" 
+            title="Conductividad" 
+            value={latestData?.conductivity.toFixed(1) ?? '--'} 
+            unit="mS/cm" 
+            color="#F59E0B" // Amber/Yellow
+            progress={getProgressWidth(latestData?.conductivity ?? 0, 5)}
+            theme={theme}
+          />
+          <SensorCard 
+            icon="flask-outline" 
+            title="Salinidad" 
+            value={latestData?.salinity.toFixed(0) ?? '--'} 
+            unit="ppm" 
+            color="#8B5CF6" // Purple
+            progress={getProgressWidth(latestData?.salinity ?? 0, 2000)}
+            theme={theme}
+          />
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const SensorCard = ({ icon, title, value, unit = '', color }: { icon: keyof typeof Ionicons.glyphMap, title: string, value: string | number, unit?: string, color: string }) => (
-  <View style={styles.sensorCard}>
-    <View style={[styles.sensorIconContainer, { backgroundColor: `${color}20` }]}>
-      <Ionicons name={icon} size={28} color={color} />
+const SensorCard = ({ icon, title, value, unit, color, progress, theme }: any) => (
+  <View style={[styles.sensorCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+    <View style={styles.cardHeader}>
+      <Ionicons name={icon} size={20} color={color} />
+      <Text style={[styles.cardTitle, { color: theme.colors.textSecondary }]}>{title}</Text>
     </View>
-    <View style={styles.sensorInfo}>
-      <Text style={styles.sensorTitle}>{title}</Text>
-      <Text style={styles.sensorValue}>{value}<Text style={styles.sensorUnit}>{unit}</Text></Text>
+    <View style={styles.cardBody}>
+      <Text style={[styles.cardValue, { color: theme.colors.text }]}>{value}</Text>
+      <Text style={[styles.cardUnit, { color: theme.colors.textSecondary }]}>{unit}</Text>
+    </View>
+    <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.border }]}>
+      <View style={[styles.progressBar, { backgroundColor: color, width: progress }]} />
     </View>
   </View>
 );
@@ -81,128 +130,85 @@ const SensorCard = ({ icon, title, value, unit = '', color }: { icon: keyof type
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F9FC',
   },
   scrollContent: {
-    padding: 24,
+    padding: 16,
+    paddingBottom: 100, // Important for bottom tab bar clearance
   },
-  header: {
+  networkBanner: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 16,
+    justifyContent: 'space-between',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 32,
+  networkSubtitle: {
+    fontSize: 12,
     fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  logoutButton: {
-    padding: 8,
-  },
-  statusCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 32,
-  },
-  statusOk: {
-    backgroundColor: '#E0F2F1',
-  },
-  statusAlert: {
-    backgroundColor: '#FFEBEE',
-  },
-  statusTextContainer: {
-    flex: 1,
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: '#546E7A',
-    fontWeight: '600',
+    letterSpacing: 1,
     marginBottom: 4,
   },
-  statusValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#263238',
+  networkStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  statusIndicator: {
+  pulseDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
+    marginRight: 8,
   },
-  indicatorOk: {
-    backgroundColor: '#00C853',
-  },
-  indicatorAlert: {
-    backgroundColor: '#D50000',
+  networkTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 24,
   },
   sensorCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#9EADBE',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  sensorIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  sensorInfo: {
-    flex: 1,
-  },
-  sensorTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  sensorValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  sensorUnit: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#94A3B8',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    backgroundColor: '#E0E7FF',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1,
+    padding: 16,
     marginBottom: 16,
   },
-  buttonIcon: {
-    marginRight: 12,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  actionButtonText: {
-    color: '#1E40AF',
-    fontSize: 16,
+  cardTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  cardBody: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 16,
+  },
+  cardValue: {
+    fontSize: 28,
     fontWeight: 'bold',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  cardUnit: {
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  progressBarContainer: {
+    height: 4,
+    borderRadius: 2,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
   },
 });
