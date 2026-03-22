@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { AnalysisScreen } from '../screens/AnalysisScreen';
 import { ValvesScreen } from '../screens/ValvesScreen';
+import { ConnectionScreen } from '../screens/ConnectionScreen';
 import { ConfigScreen } from '../screens/ConfigScreen';
 import { useTheme } from '../context/ThemeContext';
 
@@ -70,6 +71,8 @@ const TabNavigator = () => {
               iconName = focused ? 'analytics' : 'analytics-outline';
             } else if (route.name === 'Válvulas') {
               iconName = focused ? 'options' : 'options-outline';
+            } else if (route.name === 'Conexión') {
+              iconName = focused ? 'wifi' : 'wifi-outline';
             } else if (route.name === 'Config') {
               iconName = focused ? 'cog' : 'cog-outline';
             }
@@ -83,6 +86,7 @@ const TabNavigator = () => {
         <Tab.Screen name="En Vivo" component={DashboardScreen} />
         <Tab.Screen name="Análisis" component={AnalysisScreen} />
         <Tab.Screen name="Válvulas" component={ValvesScreen} />
+        <Tab.Screen name="Conexión" component={ConnectionScreen} />
         <Tab.Screen name="Config" component={ConfigScreen} />
       </Tab.Navigator>
     </View>

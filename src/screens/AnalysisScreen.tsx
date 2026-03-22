@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator, TouchableOpacity, Linking, SafeAreaView } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { SensorService, SensorData } from '../services/SensorService';
+import { ThingSpeakService } from '../services/ThingSpeakService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
@@ -27,7 +28,8 @@ export const AnalysisScreen = () => {
   }, []);
 
   const openThingSpeak = () => {
-    Linking.openURL('https://thingspeak.com/'); // Replace with actual ThingSpeak channel URL if available
+    const url = ThingSpeakService.getChannelUrl();
+    Linking.openURL(url);
   };
 
   const chartConfig = {

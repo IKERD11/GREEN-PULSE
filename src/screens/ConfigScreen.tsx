@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, Alert, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { ThingSpeakService } from '../services/ThingSpeakService';
 
 export const ConfigScreen = () => {
   const { theme } = useTheme();
@@ -11,17 +12,34 @@ export const ConfigScreen = () => {
   const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
   
   // ThingSpeak API variables
-  const [channelId, setChannelId] = useState('1234567');
-  const [writeApiKey, setWriteApiKey] = useState('');
+  const [channelId, setChannelId] = useState('3306366');
+  const [writeApiKey, setWriteApiKey] = useState('7RJJA2FFX7EE67AV');
   const [readApiKey, setReadApiKey] = useState('');
 
-  const handleSaveAndTest = () => {
-    // Simulando una prueba de conexión HTTP a ThingSpeak y la configuración de adaptadores
-    Alert.alert(
-      "Conexión Exitosa", 
-      "Se ha conectado correctamente a ThingSpeak y la configuración ha sido guardada.",
-      [{ text: "OK" }]
-    );
+  const handleSaveAndTest = async () => {
+    // Guardar configuración
+    ThingSpeakService.setConfig({
+      channelId,
+      writeApiKey,
+      readApiKey,
+    });
+
+    // Probar conexión
+    const isConnected = await ThingSpeakService.testConnection();
+    
+    if (isConnected) {
+      Alert.alert(
+        "Conexión Exitosa", 
+        "Se ha conectado correctamente a ThingSpeak y la configuración ha sido guardada.",
+        [{ text: "OK" }]
+      );
+    } else {
+      Alert.alert(
+        "Error de Conexión",
+        "No se pudo conectar a ThingSpeak. Verifica tus credenciales.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
   return (
