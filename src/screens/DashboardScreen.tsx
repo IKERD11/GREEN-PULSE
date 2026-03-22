@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Animated, Platform, SafeAreaView } 
 import { SensorService, SensorData } from '../services/SensorService';
 import { LocalStorageService } from '../services/LocalStorageService';
 import { MockSensorService } from '../services/MockSensorService';
+import { AutoAuthService } from '../services/AutoAuthService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
@@ -12,10 +13,26 @@ export const DashboardScreen = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Iniciar simulación de sensores
-    if (!MockSensorService.isRunning) {
-      MockSensorService.startSimulation(30000); // Enviar datos cada 30 segundos
-    }
+    // Auto-login al inicio
+    const initializeAuth = async () => {
+      console.log('Inicializando autenticación...');
+      const result = await AutoAuthService.autoLogin();
+      if (result.success) {
+        console.log('✅ Autenticación completada, iniciando simulación...');
+        // Iniciar simulación después de autenticarse
+        if (!MockSensorService.isRunning) {
+          MockSensorService.startSimulation(30000);
+        }
+      } else {
+        console.warn('⚠️ Auto-login falló, usando almacenamiento local');
+        // Iniciar simulación de todas formas
+        if (!MockSensorService.isRunning) {
+          MockSensorService.startSimulation(30000);
+        }
+      }
+    };
+
+    initializeAuth();
 
     // Cargar datos: primero del almacenamiento local, luego de Supabase
     const loadData = async () => {
@@ -42,13 +59,13 @@ export const DashboardScreen = () => {
       setLatestData(newRecord);
     });
 
-    // Escuchar cambios del localStorage cada 30 segundos
+    // Escuchar cambios del localStorage cada 5 segundos
     const localStorageInterval = setInterval(async () => {
       const localData = await LocalStorageService.getLatest(1);
       if (localData.length > 0) {
         setLatestData(localData[0]);
       }
-    }, 5000); // Cada 5 segundos
+    }, 5000);
 
     Animated.loop(
       Animated.sequence([

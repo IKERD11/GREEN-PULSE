@@ -66,7 +66,7 @@ export const MockSensorService = {
   },
 
   /**
-   * Genera y envía datos a la base de datos y ThingSpeak
+   * Genera y envía datos a Supabase y ThingSpeak
    */
   async generateAndSendData() {
     try {
@@ -75,20 +75,14 @@ export const MockSensorService = {
       // Guardar localmente SIEMPRE
       await LocalStorageService.saveSensorData(data);
 
-      // Enviar a ThingSpeak
-      this.sendToThingSpeakOnly(data);
-
-      // Verificar si el usuario está autenticado
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        // Si hay sesión, guardar en Supabase también
-        try {
-          await SensorService.insertData(data);
-          console.log('✅ Data saved to Supabase and ThingSpeak:', data);
-        } catch (supabaseError) {
-          console.error('⚠️ Error saving to Supabase (pero está en local):', supabaseError);
-        }
+      // Intentar guardar en Supabase (que automáticamente envía a ThingSpeak)
+      try {
+        await SensorService.insertData(data);
+        console.log('✅ Data saved to Supabase and ThingSpeak:', data);
+      } catch (supabaseError) {
+        console.warn('⚠️ Error saving to Supabase, but saved to local storage:', supabaseError);
+        // Fallback: enviar solo a ThingSpeak
+        await this.sendToThingSpeakOnly(data);
       }
     } catch (error) {
       console.error('Error generating sensor data:', error);

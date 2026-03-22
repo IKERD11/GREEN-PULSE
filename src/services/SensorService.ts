@@ -15,27 +15,50 @@ export const SensorService = {
   // Crear un nuevo registro
   async insertData(data: Omit<SensorData, 'id' | 'created_at'>) {
     const { data: user } = await supabase.auth.getUser();
-    if (!user.user) throw new Error('Usuario no autenticado');
+    
+    // Intentar guardar con user_id si está autenticado
+    if (user.user) {
+      const { error, data: insertedData } = await supabase
+        .from('sensor_data')
+        .insert({ ...data, user_id: user.user.id })
+        .select();
 
-    const { error, data: insertedData } = await supabase
-      .from('sensor_data')
-      .insert({ ...data, user_id: user.user.id })
-      .select();
+      if (error) throw error;
 
-    if (error) throw error;
+      // Enviar datos a ThingSpeak en paralelo
+      if (insertedData && insertedData.length > 0) {
+        const sensorData = insertedData[0];
+        ThingSpeakService.sendData({
+          field1: sensorData.ph,
+          field2: sensorData.conductivity,
+          field3: sensorData.humidity,
+          field4: sensorData.salinity,
+        }).catch(err => console.error('Error enviando a ThingSpeak:', err));
+      }
 
-    // Enviar datos a ThingSpeak en paralelo
-    if (insertedData && insertedData.length > 0) {
-      const sensorData = insertedData[0];
-      ThingSpeakService.sendData({
-        field1: sensorData.ph,
-        field2: sensorData.conductivity,
-        field3: sensorData.humidity,
-        field4: sensorData.salinity,
-      }).catch(err => console.error('Error enviando a ThingSpeak:', err));
+      return insertedData;
+    } else {
+      // Si no hay autenticación, insertar sin user_id
+      const { error, data: insertedData } = await supabase
+        .from('sensor_data')
+        .insert(data)
+        .select();
+
+      if (error) throw error;
+
+      // Enviar datos a ThingSpeak en paralelo
+      if (insertedData && insertedData.length > 0) {
+        const sensorData = insertedData[0];
+        ThingSpeakService.sendData({
+          field1: sensorData.ph,
+          field2: sensorData.conductivity,
+          field3: sensorData.humidity,
+          field4: sensorData.salinity,
+        }).catch(err => console.error('Error enviando a ThingSpeak:', err));
+      }
+
+      return insertedData;
     }
-
-    return insertedData;
   },
 
   // Obtener historial reciente
