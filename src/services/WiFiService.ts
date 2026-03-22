@@ -8,6 +8,12 @@ interface WiFiNetwork {
 
 class WiFiServiceClass {
   private isScanning = false;
+  private isNativeAvailable = false;
+
+  constructor() {
+    console.log('📡 WiFiService inicializado (usando fallback simulado)');
+    this.isNativeAvailable = false;
+  }
 
   /**
    * Solicita permisos para escanear redes WiFi
@@ -18,17 +24,16 @@ class WiFiServiceClass {
       const { status } = await Location.requestForegroundPermissionsAsync();
       return status === 'granted';
     } catch (error) {
-      console.error('❌ Error solicitando permisos:', error);
-      return false;
+      console.warn('⚠️ Error solicitando permisos:', error);
+      // En Expo Go, los permisos pueden fallar en desarrollo - devolver fallback
+      return true;
     }
   }
 
   /**
    * Escanea redes WiFi disponibles
    * Nota: Esta es una solución simulada con datos más realistas
-   * Para acceso real a redes WiFi, se requeriría:
-   * - Android: NetworkScan API nativa
-   * - iOS: NEHotspotHelper (requiere permisos especiales)
+   * Para acceso real a redes WiFi, se requeriría compilación nativa
    */
   async scanNetworks(): Promise<WiFiNetwork[]> {
     if (this.isScanning) {
@@ -39,24 +44,25 @@ class WiFiServiceClass {
     this.isScanning = true;
 
     try {
-      // Verificar permisos
+      // Solicitar permisos
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
-        console.warn('⚠️ Permisos de ubicación denegados');
-        // Retornar redes simuladas como fallback
-        return this.getMockNetworks();
+        console.warn('⚠️ Permisos denegados, usando redes simuladas');
       }
 
-      // Retornar redes simuladas (React Native no tiene API estándar para usar}
-      // En una app nativa real, usarías:
-      // - Android: WifiManager.getScanResults()
-      // - iOS: NEHotspotHelper
-      const networks = this.getMockNetworks();
+      // En Expo Go, no hay acceso a APIs WiFi nativas
+      // Se requiere compilación con eas build para acceso real
+      console.log('📡 Escaneando redes WiFi (modo simulado en Expo Go)');
       
-      console.log('📡 Redes WiFi disponibles:', networks.length);
+      // Simular delay de escaneo
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const networks = this.getMockNetworks();
+      console.log(`📡 Redes encontradas: ${networks.length}`);
+      
       return networks;
     } catch (error) {
-      console.error('❌ Error escaneando redes:', error);
+      console.warn('⚠️ Error escaneando redes:', error);
       return this.getMockNetworks();
     } finally {
       this.isScanning = false;
