@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Switch, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { WiFiService } from '../services/WiFiService';
+import { BluetoothService } from '../services/BluetoothService';
 
 interface WiFiNetwork {
   id: string;
@@ -26,23 +28,31 @@ export const ConnectionScreen = () => {
   const [connectedNetwork, setConnectedNetwork] = useState<string | null>(null);
   const [connectedDevice, setConnectedDevice] = useState<string | null>(null);
 
+  // Limpiar recursos al desmontar
+  useEffect(() => {
+    return () => {
+      BluetoothService.destroy().catch(console.error);
+    };
+  }, []);
+
   const handleWifiToggle = async () => {
     setLoading(true);
     try {
       if (!wifiEnabled) {
-        // Simular escaneo de redes WiFi
-        setTimeout(() => {
-          const mockNetworks: WiFiNetwork[] = [
-            { id: '1', name: 'Red_Invernadero', strength: 95 },
-            { id: '2', name: 'RED_SENSOR_PRINCIPAL', strength: 80 },
-            { id: '3', name: 'WiFi_Invitado', strength: 65 },
-            { id: '4', name: 'Red_IoT', strength: 72 },
-          ];
-          setWifiNetworks(mockNetworks);
-          setWifiEnabled(true);
-          Alert.alert('WiFi Activado', 'Redes disponibles encontradas');
-          setLoading(false);
-        }, 1500);
+        // Escanear redes WiFi disponibles
+        console.log('📡 Escaneando redes WiFi...');
+        const networks = await WiFiService.scanNetworks();
+        
+        setWifiNetworks(networks);
+        setWifiEnabled(true);
+        
+        if (networks.length > 0) {
+          Alert.alert('WiFi Activado', `Se encontraron ${networks.length} redes disponibles`);
+        } else {
+          Alert.alert('WiFi Activado', 'No se encontraron redes WiFi');
+        }
+        
+        setLoading(false);
       } else {
         setWifiEnabled(false);
         setWifiNetworks([]);
@@ -51,7 +61,8 @@ export const ConnectionScreen = () => {
         setLoading(false);
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo activar WiFi');
+      Alert.alert('Error', 'No se pudo escanear redes WiFi');
+      console.error('Error WiFi:', error);
       setLoading(false);
     }
   };
@@ -60,19 +71,22 @@ export const ConnectionScreen = () => {
     setLoading(true);
     try {
       if (!bluetoothEnabled) {
-        // Simular escaneo de dispositivos Bluetooth
-        setTimeout(() => {
-          const mockDevices: BluetoothDevice[] = [
-            { id: '1', name: 'Sensor_1', rssi: -50 },
-            { id: '2', name: 'Sensor_2', rssi: -65 },
-            { id: '3', name: 'ESP32_Device', rssi: -45 },
-          ];
-          setBluetoothDevices(mockDevices);
-          setBluetoothEnabled(true);
-          Alert.alert('Bluetooth Activado', 'Escaneando dispositivos...');
-          setLoading(false);
-        }, 1500);
+        // Escanear dispositivos Bluetooth LE
+        console.log('🔎 Escaneando dispositivos Bluetooth...');
+        const devices = await BluetoothService.scanDevices(5000);
+        
+        setBluetoothDevices(devices);
+        setBluetoothEnabled(true);
+        
+        if (devices.length > 0) {
+          Alert.alert('Bluetooth Activado', `Se encontraron ${devices.length} dispositivos`);
+        } else {
+          Alert.alert('Bluetooth Activado', 'No se encontraron dispositivos');
+        }
+        
+        setLoading(false);
       } else {
+        await BluetoothService.stopScanning();
         setBluetoothEnabled(false);
         setBluetoothDevices([]);
         setConnectedDevice(null);
@@ -81,6 +95,7 @@ export const ConnectionScreen = () => {
       }
     } catch (error) {
       Alert.alert('Error', 'Error al activar Bluetooth');
+      console.error('Error Bluetooth:', error);
       setLoading(false);
     }
   };
@@ -90,9 +105,23 @@ export const ConnectionScreen = () => {
     Alert.alert('Conectado', `Conectado a "${networkName}"`);
   };
 
-  const handleConnectDevice = (deviceId: string, deviceName: string) => {
-    setConnectedDevice(deviceId);
-    Alert.alert('Conectado', `Conectado a ${deviceName}`);
+  const handleConnectDevice = async (deviceId: string, deviceName: string) => {
+    try {
+      setLoading(true);
+      const connected = await BluetoothService.connectToDevice(deviceId, deviceName);
+      
+      if (connected) {
+        setConnectedDevice(deviceId);
+        Alert.alert('Éxito', `Conectado a ${deviceName}`);
+      } else {
+        Alert.alert('Error', `No se pudo conectar a ${deviceName}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', `Error conectando a ${deviceName}`);
+      console.error('Error conectando:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getSignalBars = (strength: number) => {
