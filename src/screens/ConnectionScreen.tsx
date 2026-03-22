@@ -3,35 +3,55 @@ import { View, Text, StyleSheet, Switch, ScrollView, SafeAreaView, TouchableOpac
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
+interface WiFiNetwork {
+  id: string;
+  name: string;
+  strength: number;
+}
+
+interface BluetoothDevice {
+  id: string;
+  name: string;
+  rssi: number;
+}
+
 export const ConnectionScreen = () => {
   const { theme } = useTheme();
   
   const [wifiEnabled, setWifiEnabled] = useState(false);
   const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
-  const [wifiConnected, setWifiConnected] = useState(false);
-  const [bluetoothDevices, setBluetoothDevices] = useState<string[]>([]);
+  const [wifiNetworks, setWifiNetworks] = useState<WiFiNetwork[]>([]);
+  const [bluetoothDevices, setBluetoothDevices] = useState<BluetoothDevice[]>([]);
   const [loading, setLoading] = useState(false);
+  const [connectedNetwork, setConnectedNetwork] = useState<string | null>(null);
   const [connectedDevice, setConnectedDevice] = useState<string | null>(null);
 
   const handleWifiToggle = async () => {
     setLoading(true);
     try {
       if (!wifiEnabled) {
-        // Simular conexión WiFi
+        // Simular escaneo de redes WiFi
         setTimeout(() => {
+          const mockNetworks: WiFiNetwork[] = [
+            { id: '1', name: 'Red_Invernadero', strength: 95 },
+            { id: '2', name: 'RED_SENSOR_PRINCIPAL', strength: 80 },
+            { id: '3', name: 'WiFi_Invitado', strength: 65 },
+            { id: '4', name: 'Red_IoT', strength: 72 },
+          ];
+          setWifiNetworks(mockNetworks);
           setWifiEnabled(true);
-          setWifiConnected(true);
-          Alert.alert('Éxito', 'Conectado a la red WiFi');
+          Alert.alert('WiFi Activado', 'Redes disponibles encontradas');
           setLoading(false);
-        }, 1000);
+        }, 1500);
       } else {
         setWifiEnabled(false);
-        setWifiConnected(false);
+        setWifiNetworks([]);
+        setConnectedNetwork(null);
         Alert.alert('Desconectado', 'WiFi desactivado');
         setLoading(false);
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo conectar a WiFi');
+      Alert.alert('Error', 'No se pudo activar WiFi');
       setLoading(false);
     }
   };
@@ -42,8 +62,13 @@ export const ConnectionScreen = () => {
       if (!bluetoothEnabled) {
         // Simular escaneo de dispositivos Bluetooth
         setTimeout(() => {
+          const mockDevices: BluetoothDevice[] = [
+            { id: '1', name: 'Sensor_1', rssi: -50 },
+            { id: '2', name: 'Sensor_2', rssi: -65 },
+            { id: '3', name: 'ESP32_Device', rssi: -45 },
+          ];
+          setBluetoothDevices(mockDevices);
           setBluetoothEnabled(true);
-          setBluetoothDevices(['Sensor_1', 'Sensor_2', 'ESP32_Device']);
           Alert.alert('Bluetooth Activado', 'Escaneando dispositivos...');
           setLoading(false);
         }, 1500);
@@ -60,9 +85,21 @@ export const ConnectionScreen = () => {
     }
   };
 
-  const handleConnectDevice = (device: string) => {
-    setConnectedDevice(device);
-    Alert.alert('Conectado', `Conectado a ${device}`);
+  const handleConnectNetwork = (networkId: string, networkName: string) => {
+    setConnectedNetwork(networkId);
+    Alert.alert('Conectado', `Conectado a "${networkName}"`);
+  };
+
+  const handleConnectDevice = (deviceId: string, deviceName: string) => {
+    setConnectedDevice(deviceId);
+    Alert.alert('Conectado', `Conectado a ${deviceName}`);
+  };
+
+  const getSignalBars = (strength: number) => {
+    if (strength >= 85) return 4;
+    if (strength >= 70) return 3;
+    if (strength >= 55) return 2;
+    return 1;
   };
 
   return (
@@ -89,7 +126,7 @@ export const ConnectionScreen = () => {
               <View>
                 <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Wi-Fi</Text>
                 <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]}>
-                  {wifiEnabled && wifiConnected ? 'Conectado a "Red_Invernadero"' : 'Desconectado'}
+                  {wifiEnabled ? 'Escaneando redes...' : 'Desactivado'}
                 </Text>
               </View>
             </View>
@@ -102,10 +139,55 @@ export const ConnectionScreen = () => {
             />
           </View>
 
-          {wifiConnected && (
-            <View style={[styles.statusBox, { backgroundColor: `${theme.colors.primary}10` }]}>
-              <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
-              <Text style={[styles.statusText, { color: theme.colors.primary }]}>Red activa</Text>
+          {wifiEnabled && wifiNetworks.length > 0 && (
+            <>
+              <Text style={[styles.deviceListTitle, { color: theme.colors.textSecondary }]}>Redes disponibles:</Text>
+              {wifiNetworks.map((network) => (
+                <TouchableOpacity
+                  key={network.id}
+                  style={[
+                    styles.deviceItem,
+                    {
+                      backgroundColor: connectedNetwork === network.id ? `${theme.colors.primary}20` : theme.colors.background,
+                      borderColor: connectedNetwork === network.id ? theme.colors.primary : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => handleConnectNetwork(network.id, network.name)}
+                >
+                  <Ionicons 
+                    name={connectedNetwork === network.id ? 'checkmark-circle' : 'wifi'} 
+                    size={20} 
+                    color={connectedNetwork === network.id ? theme.colors.primary : theme.colors.primary}
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.deviceName, { color: theme.colors.text }]}>{network.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      {[...Array(4)].map((_, i) => (
+                        <Ionicons
+                          key={i}
+                          name="wifi"
+                          size={10}
+                          color={i < getSignalBars(network.strength) ? theme.colors.primary : theme.colors.textSecondary}
+                          style={{ marginRight: 2 }}
+                        />
+                      ))}
+                      <Text style={[styles.signalText, { color: theme.colors.textSecondary }]}>
+                        {network.strength}%
+                      </Text>
+                    </View>
+                  </View>
+                  {connectedNetwork === network.id && (
+                    <Text style={[styles.connectedLabel, { color: theme.colors.primary }]}>Conectado</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
+          {wifiEnabled && wifiNetworks.length === 0 && !loading && (
+            <View style={[styles.emptyBox, { backgroundColor: `${theme.colors.border}20` }]}>
+              <Ionicons name="search-outline" size={32} color={theme.colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>No se encontraron redes</Text>
             </View>
           )}
         </View>
@@ -124,7 +206,7 @@ export const ConnectionScreen = () => {
               <View>
                 <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Bluetooth LE</Text>
                 <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]}>
-                  {bluetoothEnabled ? 'Encendido' : 'Apagado'}
+                  {bluetoothEnabled ? 'Escaneando dispositivos...' : 'Apagado'}
                 </Text>
               </View>
             </View>
@@ -140,25 +222,30 @@ export const ConnectionScreen = () => {
           {bluetoothEnabled && bluetoothDevices.length > 0 && (
             <>
               <Text style={[styles.deviceListTitle, { color: theme.colors.textSecondary }]}>Dispositivos disponibles:</Text>
-              {bluetoothDevices.map((device, index) => (
+              {bluetoothDevices.map((device) => (
                 <TouchableOpacity
-                  key={index}
+                  key={device.id}
                   style={[
                     styles.deviceItem,
                     {
-                      backgroundColor: connectedDevice === device ? `${theme.colors.secondary}20` : theme.colors.background,
-                      borderColor: connectedDevice === device ? theme.colors.secondary : theme.colors.border,
+                      backgroundColor: connectedDevice === device.id ? `${theme.colors.secondary}20` : theme.colors.background,
+                      borderColor: connectedDevice === device.id ? theme.colors.secondary : theme.colors.border,
                     },
                   ]}
-                  onPress={() => handleConnectDevice(device)}
+                  onPress={() => handleConnectDevice(device.id, device.name)}
                 >
                   <Ionicons 
-                    name={connectedDevice === device ? 'checkmark-circle' : 'ellipse-outline'} 
+                    name={connectedDevice === device.id ? 'checkmark-circle' : 'bluetooth'} 
                     size={20} 
-                    color={connectedDevice === device ? theme.colors.secondary : theme.colors.textSecondary}
+                    color={connectedDevice === device.id ? theme.colors.secondary : theme.colors.secondary}
                   />
-                  <Text style={[styles.deviceName, { color: theme.colors.text }]}>{device}</Text>
-                  {connectedDevice === device && (
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[styles.deviceName, { color: theme.colors.text }]}>{device.name}</Text>
+                    <Text style={[styles.signalText, { color: theme.colors.textSecondary }]}>
+                      RSSI: {device.rssi} dBm
+                    </Text>
+                  </View>
+                  {connectedDevice === device.id && (
                     <Text style={[styles.connectedLabel, { color: theme.colors.secondary }]}>Conectado</Text>
                   )}
                 </TouchableOpacity>
@@ -186,12 +273,12 @@ export const ConnectionScreen = () => {
         <View style={[styles.summaryCard, { backgroundColor: `${theme.colors.primary}10`, borderColor: theme.colors.primary }]}>
           <Ionicons name="information-circle" size={20} color={theme.colors.primary} style={{ marginRight: 12 }} />
           <Text style={[styles.summaryText, { color: theme.colors.primary }]}>
-            {wifiEnabled && bluetoothEnabled 
-              ? 'Todas las conexiones están activas' 
-              : wifiEnabled 
-              ? 'Solo WiFi está activo' 
-              : bluetoothEnabled 
-              ? 'Solo Bluetooth está activo' 
+            {connectedNetwork && connectedDevice 
+              ? 'WiFi y Bluetooth conectados' 
+              : connectedNetwork 
+              ? 'Conectado por WiFi' 
+              : connectedDevice 
+              ? 'Conectado por Bluetooth' 
               : 'Sin conexiones activas'}
           </Text>
         </View>
@@ -299,6 +386,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 12,
     flex: 1,
+  },
+  signalText: {
+    fontSize: 11,
+    marginTop: 2,
   },
   connectedLabel: {
     fontSize: 11,
