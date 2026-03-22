@@ -23,7 +23,7 @@ export const ThingSpeakService = {
   config: {
     channelId: '3306366',
     writeApiKey: '7RJJA2FFX7EE67AV',
-    readApiKey: '',
+    readApiKey: 'L2MK619W8E21QCJG',
   } as ThingSpeakConfig,
 
   /**

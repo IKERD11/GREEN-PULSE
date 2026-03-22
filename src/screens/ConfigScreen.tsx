@@ -14,7 +14,7 @@ export const ConfigScreen = () => {
   // ThingSpeak API variables
   const [channelId, setChannelId] = useState('3306366');
   const [writeApiKey, setWriteApiKey] = useState('7RJJA2FFX7EE67AV');
-  const [readApiKey, setReadApiKey] = useState('');
+  const [readApiKey, setReadApiKey] = useState('L2MK619W8E21QCJG');
 
   const handleSaveAndTest = async () => {
     // Guardar configuración
