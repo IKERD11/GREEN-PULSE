@@ -12,20 +12,50 @@ export const AnalysisScreen = () => {
   const { theme } = useTheme();
   const [history, setHistory] = useState<SensorData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<'local' | 'thingspeak'>('local');
 
-  const fetchHistory = () => {
+  const fetchHistory = async () => {
     setLoading(true);
-    SensorService.getHistory(10) // Últimos 10 registros
-      .then(data => {
-        setHistory(data.reverse());
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    try {
+      // Intentar obtener datos de ThingSpeak primero
+      if (dataSource === 'thingspeak' && ThingSpeakService.isConfigured()) {
+        const thingspeakData = await ThingSpeakService.getHistory(10);
+        if (thingspeakData && thingspeakData.length > 0) {
+          const convertedData: SensorData[] = thingspeakData.map((item: any) => ({
+            ph: parseFloat(item.field1) || 0,
+            conductivity: parseFloat(item.field2) || 0,
+            humidity: parseFloat(item.field3) || 0,
+            salinity: parseFloat(item.field4) || 0,
+            created_at: item.created_at,
+          }));
+          setHistory(convertedData.reverse());
+        } else {
+          // Si ThingSpeak falla, usar datos locales
+          const localData = await SensorService.getHistory(10);
+          setHistory(localData.reverse());
+        }
+      } else {
+        // Obtener datos locales
+        const localData = await SensorService.getHistory(10);
+        setHistory(localData.reverse());
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      // Fallback a datos locales
+      try {
+        const localData = await SensorService.getHistory(10);
+        setHistory(localData.reverse());
+      } catch (e) {
+        console.error('Error fetching local data:', e);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [dataSource]);
 
   const openThingSpeak = () => {
     const url = ThingSpeakService.getChannelUrl();
@@ -69,6 +99,24 @@ export const AnalysisScreen = () => {
             disabled={loading}
           >
             <Ionicons name="refresh" size={20} color={theme.colors.text} style={loading ? { opacity: 0.5 } : {}} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Data Source Toggle */}
+        <View style={[styles.dataSourceToggle, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <TouchableOpacity 
+            style={[styles.toggleButton, { backgroundColor: dataSource === 'local' ? theme.colors.primary : theme.colors.background }]}
+            onPress={() => setDataSource('local')}
+          >
+            <Ionicons name="phone-portrait-outline" size={16} color={dataSource === 'local' ? '#FFF' : theme.colors.textSecondary} />
+            <Text style={[styles.toggleText, { color: dataSource === 'local' ? '#FFF' : theme.colors.textSecondary }]}>Local</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.toggleButton, { backgroundColor: dataSource === 'thingspeak' ? theme.colors.secondary : theme.colors.background }]}
+            onPress={() => setDataSource('thingspeak')}
+          >
+            <Ionicons name="cloud-outline" size={16} color={dataSource === 'thingspeak' ? '#FFF' : theme.colors.textSecondary} />
+            <Text style={[styles.toggleText, { color: dataSource === 'thingspeak' ? '#FFF' : theme.colors.textSecondary }]}>ThingSpeak</Text>
           </TouchableOpacity>
         </View>
 
@@ -162,6 +210,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
+  },
+  dataSourceToggle: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+    gap: 8,
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  toggleText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   titleRow: {
     flexDirection: 'row',

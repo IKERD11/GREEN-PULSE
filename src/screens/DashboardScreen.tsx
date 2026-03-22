@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, Platform, SafeAreaView } from 'react-native';
 import { SensorService, SensorData } from '../services/SensorService';
+import { MockSensorService } from '../services/MockSensorService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
@@ -10,6 +11,11 @@ export const DashboardScreen = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Iniciar simulación de sensores
+    if (!MockSensorService.isRunning) {
+      MockSensorService.startSimulation(30000); // Enviar datos cada 30 segundos
+    }
+
     SensorService.getHistory(1).then((data) => {
       if (data.length > 0) setLatestData(data[0]);
     }).catch(console.error);

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { ThingSpeakService } from './ThingSpeakService';
 
 export interface SensorData {
   id?: string;
@@ -22,6 +23,18 @@ export const SensorService = {
       .select();
 
     if (error) throw error;
+
+    // Enviar datos a ThingSpeak en paralelo
+    if (insertedData && insertedData.length > 0) {
+      const sensorData = insertedData[0];
+      ThingSpeakService.sendData({
+        field1: sensorData.ph,
+        field2: sensorData.conductivity,
+        field3: sensorData.humidity,
+        field4: sensorData.salinity,
+      }).catch(err => console.error('Error enviando a ThingSpeak:', err));
+    }
+
     return insertedData;
   },
 
