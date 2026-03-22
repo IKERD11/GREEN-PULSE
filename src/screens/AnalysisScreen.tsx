@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator, TouchableOpacity, Linking, SafeAreaView } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { SensorService, SensorData } from '../services/SensorService';
+import { LocalStorageService } from '../services/LocalStorageService';
 import { ThingSpeakService } from '../services/ThingSpeakService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -17,7 +18,6 @@ export const AnalysisScreen = () => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Intentar obtener datos de ThingSpeak primero
       if (dataSource === 'thingspeak' && ThingSpeakService.isConfigured()) {
         const thingspeakData = await ThingSpeakService.getHistory(10);
         if (thingspeakData && thingspeakData.length > 0) {
@@ -31,19 +31,32 @@ export const AnalysisScreen = () => {
           setHistory(convertedData.reverse());
         } else {
           // Si ThingSpeak falla, usar datos locales
-          const localData = await SensorService.getHistory(10);
+          const localData = await LocalStorageService.getLatest(10);
           setHistory(localData.reverse());
         }
       } else {
-        // Obtener datos locales
-        const localData = await SensorService.getHistory(10);
-        setHistory(localData.reverse());
+        // Intentar obtener datos de Supabase primero
+        try {
+          const supabbaseData = await SensorService.getHistory(10);
+          if (supabbaseData && supabbaseData.length > 0) {
+            setHistory(supabbaseData.reverse());
+          } else {
+            // Si Supabase está vacío, usar datos locales
+            const localData = await LocalStorageService.getLatest(10);
+            setHistory(localData.reverse());
+          }
+        } catch (supabaseError) {
+          // Si hay error en Supabase, usar datos locales
+          console.warn('Supabase error, using local data:', supabaseError);
+          const localData = await LocalStorageService.getLatest(10);
+          setHistory(localData.reverse());
+        }
       }
     } catch (error) {
       console.error('Error fetching history:', error);
-      // Fallback a datos locales
+      // Fallback final a datos locales
       try {
-        const localData = await SensorService.getHistory(10);
+        const localData = await LocalStorageService.getLatest(10);
         setHistory(localData.reverse());
       } catch (e) {
         console.error('Error fetching local data:', e);

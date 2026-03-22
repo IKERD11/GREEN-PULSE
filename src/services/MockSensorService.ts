@@ -6,6 +6,8 @@
 
 import { SensorService, SensorData } from './SensorService';
 import { ThingSpeakService } from './ThingSpeakService';
+import { LocalStorageService } from './LocalStorageService';
+import { supabase } from './supabase';
 
 export const MockSensorService = {
   isRunning: false,
@@ -70,12 +72,48 @@ export const MockSensorService = {
     try {
       const data = this.generateRealisticData();
       
-      // Enviar a Supabase
-      await SensorService.insertData(data);
-      
-      console.log('Data sent successfully:', data);
+      // Guardar localmente SIEMPRE
+      await LocalStorageService.saveSensorData(data);
+
+      // Enviar a ThingSpeak
+      this.sendToThingSpeakOnly(data);
+
+      // Verificar si el usuario está autenticado
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        // Si hay sesión, guardar en Supabase también
+        try {
+          await SensorService.insertData(data);
+          console.log('✅ Data saved to Supabase and ThingSpeak:', data);
+        } catch (supabaseError) {
+          console.error('⚠️ Error saving to Supabase (pero está en local):', supabaseError);
+        }
+      }
     } catch (error) {
       console.error('Error generating sensor data:', error);
+    }
+  },
+
+  /**
+   * Envía datos solo a ThingSpeak (sin Supabase)
+   */
+  async sendToThingSpeakOnly(data: SensorData) {
+    try {
+      const success = await ThingSpeakService.sendData({
+        field1: data.ph,
+        field2: data.conductivity,
+        field3: data.humidity,
+        field4: data.salinity,
+      });
+
+      if (success) {
+        console.log('✅ Data sent to ThingSpeak only:', data);
+      } else {
+        console.error('❌ Failed to send to ThingSpeak');
+      }
+    } catch (error) {
+      console.error('Error sending to ThingSpeak:', error);
     }
   },
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, Platform, SafeAreaView } from 'react-native';
 import { SensorService, SensorData } from '../services/SensorService';
+import { LocalStorageService } from '../services/LocalStorageService';
 import { MockSensorService } from '../services/MockSensorService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -16,13 +17,38 @@ export const DashboardScreen = () => {
       MockSensorService.startSimulation(30000); // Enviar datos cada 30 segundos
     }
 
-    SensorService.getHistory(1).then((data) => {
-      if (data.length > 0) setLatestData(data[0]);
-    }).catch(console.error);
+    // Cargar datos: primero del almacenamiento local, luego de Supabase
+    const loadData = async () => {
+      try {
+        // Intentar obtener del almacenamiento local primero
+        const localData = await LocalStorageService.getLatest(1);
+        if (localData.length > 0) {
+          setLatestData(localData[0]);
+        }
 
+        // Luego de Supabase si está disponible
+        SensorService.getHistory(1).then((data) => {
+          if (data.length > 0) setLatestData(data[0]);
+        }).catch(console.error);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+
+    // Suscribirse a Realtime
     const unsubscribe = SensorService.subscribeToNewData((newRecord) => {
       setLatestData(newRecord);
     });
+
+    // Escuchar cambios del localStorage cada 30 segundos
+    const localStorageInterval = setInterval(async () => {
+      const localData = await LocalStorageService.getLatest(1);
+      if (localData.length > 0) {
+        setLatestData(localData[0]);
+      }
+    }, 5000); // Cada 5 segundos
 
     Animated.loop(
       Animated.sequence([
@@ -41,6 +67,7 @@ export const DashboardScreen = () => {
 
     return () => {
       unsubscribe();
+      clearInterval(localStorageInterval);
     };
   }, []);
 
