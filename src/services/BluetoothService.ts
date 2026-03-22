@@ -15,22 +15,28 @@ class BluetoothServiceClass {
   private discoveredDevices: Map<string, BluetoothDevice> = new Map();
 
   constructor() {
-    this.bleManager = new BleManager();
-    console.log('🔵 Bluetooth LE Service - Escaneará dispositivos REALES');
-    console.log('⚠️  Requiere compilación nativa (eas build), no funciona en Expo Go');
+    if (Platform.OS !== 'web') {
+      try {
+        this.bleManager = new BleManager();
+      } catch (e) {
+        console.warn('⚠️ No se pudo inicializar BleManager (quizá dependencias nativas faltantes)');
+        this.bleManager = {} as BleManager;
+      }
+    } else {
+      console.warn('⚠️ BleManager no está soportado en la web. Usando mock.');
+      this.bleManager = {} as BleManager;
+    }
+    console.log('🔵 Bluetooth LE Service - inicializado');
   }
 
-  /**
-   * Solicita permisos de Bluetooth necesarios
-   */
   async requestPermissions(): Promise<boolean> {
     try {
+      if (Platform.OS === 'web') return true;
+
       if (Platform.OS === 'android') {
-        // Android 12+ requiere permisos de ubicación para Bluetooth LE
         const { status: locationStatus } = await requestLocationPermissions();
         return locationStatus === 'granted';
       } else {
-        // iOS requiere acceso a Bluetooth (configurado en Info.plist via app.json)
         return true;
       }
     } catch (error) {
@@ -39,9 +45,6 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Inicia el escaneo de dispositivos Bluetooth LE REALES
-   */
   async scanDevices(durationMs: number = 10000): Promise<BluetoothDevice[]> {
     if (this.isScanning) {
       console.warn('⚠️ Ya hay un escaneo en progreso');
@@ -51,14 +54,21 @@ class BluetoothServiceClass {
     this.isScanning = true;
     this.discoveredDevices.clear();
 
+    if (Platform.OS === 'web' || !this.bleManager.startDeviceScan) {
+      console.log('🔎 Escaneando dispositivos Bluetooth... (Modo Web simulado)');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      this.isScanning = false;
+      const mockDevices = this.getMockDevices();
+      mockDevices.forEach(d => this.discoveredDevices.set(d.id, d));
+      return mockDevices;
+    }
+
     try {
-      // Solicitar permisos
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
         throw new Error('Permisos de Bluetooth denegados');
       }
 
-      // Iniciar escaneo real de dispositivos BLE
       console.log('🔎 Escaneando dispositivos Bluetooth LE reales...');
       
       this.bleManager.onStateChange((state) => {
@@ -78,15 +88,10 @@ class BluetoothServiceClass {
             rssi: device.rssi || -100,
             isConnectable: device.isConnectable ?? true,
           });
-
-          console.log(`✅ Dispositivo BLE encontrado: ${device.name} (RSSI: ${device.rssi} dBm)`);
         }
       });
 
-      // Esperar la duración del escaneo
       await new Promise((resolve) => setTimeout(resolve, durationMs));
-
-      // Detener escaneo
       await this.bleManager.stopDeviceScan();
       
       const devices = Array.from(this.discoveredDevices.values()).sort((a, b) => b.rssi - a.rssi);
@@ -101,12 +106,11 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Detiene el escaneo actual
-   */
   async stopScanning(): Promise<void> {
     try {
-      await this.bleManager.stopDeviceScan();
+      if (Platform.OS !== 'web' && this.bleManager.stopDeviceScan) {
+        await this.bleManager.stopDeviceScan();
+      }
       this.isScanning = false;
       console.log('⏹️ Escaneo detenido');
     } catch (error) {
@@ -114,10 +118,14 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Conecta a un dispositivo Bluetooth específico
-   */
   async connectToDevice(deviceId: string, deviceName: string): Promise<boolean> {
+    if (Platform.OS === 'web' || !this.bleManager.connectToDevice) {
+      console.log(`🔗 Conectando a ${deviceName} (Simulado en Web)...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`✅ Conectado a ${deviceName}`);
+      return true;
+    }
+
     try {
       console.log(`🔗 Conectando a ${deviceName}...`);
       const device = await this.bleManager.connectToDevice(deviceId);
@@ -130,10 +138,12 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Desconecta de un dispositivo Bluetooth
-   */
   async disconnectFromDevice(deviceId: string): Promise<boolean> {
+    if (Platform.OS === 'web' || !this.bleManager.cancelDeviceConnection) {
+      console.log(`✅ Desconectado (Simulado Web)`);
+      return true;
+    }
+
     try {
       await this.bleManager.cancelDeviceConnection(deviceId);
       console.log(`✅ Desconectado`);
@@ -144,14 +154,13 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Lee una característica de un dispositivo conectado
-   */
   async readCharacteristic(
     deviceId: string,
     serviceUUID: string,
     characteristicUUID: string
   ): Promise<string | null> {
+    if (Platform.OS === 'web' || !this.bleManager.readCharacteristicForDevice) return 'MOCK_VALUE';
+
     try {
       const characteristic = await this.bleManager.readCharacteristicForDevice(
         deviceId,
@@ -165,15 +174,14 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Escribe en una característica de un dispositivo conectado
-   */
   async writeCharacteristic(
     deviceId: string,
     serviceUUID: string,
     characteristicUUID: string,
     value: string
   ): Promise<boolean> {
+    if (Platform.OS === 'web' || !this.bleManager.writeCharacteristicWithResponseForDevice) return true;
+
     try {
       await this.bleManager.writeCharacteristicWithResponseForDevice(
         deviceId,
@@ -188,15 +196,17 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Suscribe a cambios en una característica
-   */
   async monitorCharacteristic(
     deviceId: string,
     serviceUUID: string,
     characteristicUUID: string,
     onValueChange: (value: string) => void
   ): Promise<void> {
+    if (Platform.OS === 'web' || !this.bleManager.monitorCharacteristicForDevice) {
+      const intervalId = setInterval(() => onValueChange(Math.random().toFixed(2)), 2000);
+      return;
+    }
+
     try {
       this.bleManager.monitorCharacteristicForDevice(
         deviceId,
@@ -217,9 +227,6 @@ class BluetoothServiceClass {
     }
   }
 
-  /**
-   * Obtiene dispositivos simulados como fallback
-   */
   private getMockDevices(): BluetoothDevice[] {
     return [
       { id: 'ble_1', name: 'Sensor_pH_01', rssi: -50, isConnectable: true },
@@ -229,10 +236,9 @@ class BluetoothServiceClass {
     ];
   }
 
-  /**
-   * Limpia los recursos
-   */
   async destroy(): Promise<void> {
+    if (Platform.OS === 'web' || !this.bleManager.destroy) return;
+
     try {
       await this.bleManager.destroy();
     } catch (error) {
