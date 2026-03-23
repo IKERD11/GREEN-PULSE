@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image, SafeAreaView, ScrollView } from 'react-native';
 import { supabase } from '../services/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 export const AuthScreen = () => {
+  const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,7 @@ export const AuthScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
@@ -50,24 +52,28 @@ export const AuthScreen = () => {
               style={styles.logo} 
               resizeMode="contain" 
             />
-            <Text style={styles.title}>GREEN PULSE</Text>
-            <Text style={styles.subtitle}>Cuidado natural, control total</Text>
+            <Text style={[styles.title, { color: theme.colors.primary }]}>GREEN PULSE</Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Cuidado natural, control total</Text>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.welcomeText}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, shadowColor: theme.colors.primary }]}>
+            <Text style={[styles.welcomeText, { color: theme.colors.text }]}>
               {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
             </Text>
-            <Text style={styles.welcomeSubtext}>
+            <Text style={[styles.welcomeSubtext, { color: theme.colors.textSecondary }]}>
               {isLogin ? 'Ingresa tus datos para continuar' : 'Regístrate para empezar a monitorear'}
             </Text>
             
-            <View style={[styles.inputContainer, focusedInput === 'email' && styles.inputContainerFocused]}>
-              <Ionicons name="mail-outline" size={20} color={focusedInput === 'email' ? '#22C55E' : '#94A3B8'} style={styles.inputIcon} />
+            <View style={[
+              styles.inputContainer, 
+              { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+              focusedInput === 'email' && [styles.inputContainerFocused, { borderColor: theme.colors.primary, shadowColor: theme.colors.primary }]
+            ]}>
+              <Ionicons name="mail-outline" size={20} color={focusedInput === 'email' ? theme.colors.primary : theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Correo electrónico"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={theme.colors.textSecondary}
                 onChangeText={(text) => setEmail(text)}
                 value={email}
                 autoCapitalize="none"
@@ -77,12 +83,16 @@ export const AuthScreen = () => {
               />
             </View>
 
-            <View style={[styles.inputContainer, focusedInput === 'password' && styles.inputContainerFocused]}>
-              <Ionicons name="lock-closed-outline" size={20} color={focusedInput === 'password' ? '#22C55E' : '#94A3B8'} style={styles.inputIcon} />
+            <View style={[
+              styles.inputContainer, 
+              { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
+              focusedInput === 'password' && [styles.inputContainerFocused, { borderColor: theme.colors.primary, shadowColor: theme.colors.primary }]
+            ]}>
+              <Ionicons name="lock-closed-outline" size={20} color={focusedInput === 'password' ? theme.colors.primary : theme.colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Contraseña"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={theme.colors.textSecondary}
                 onChangeText={(text) => setPassword(text)}
                 value={password}
                 secureTextEntry={!showPassword}
@@ -91,41 +101,48 @@ export const AuthScreen = () => {
                 onBlur={() => setFocusedInput(null)}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#94A3B8" />
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {isLogin && (
               <TouchableOpacity onPress={resetPassword} style={styles.forgotPasswordContainer}>
-                <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity 
-              style={styles.primaryButton} 
+              style={[styles.primaryButton, { backgroundColor: theme.colors.primary, shadowColor: theme.colors.primary }]} 
               onPress={isLogin ? signInWithEmail : signUpWithEmail}
               disabled={loading}
               activeOpacity={0.9}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={theme.isDark ? '#000' : '#fff'} />
               ) : (
-                <Text style={styles.primaryButtonText}>{isLogin ? 'Ingresar' : 'Registrarse'}</Text>
+                <Text style={[styles.primaryButtonText, { color: theme.isDark ? '#0a0e17' : '#FFFFFF' }]}>{isLogin ? 'Ingresar' : 'Registrarse'}</Text>
               )}
             </TouchableOpacity>
 
             <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>o</Text>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+              <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>o</Text>
+              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
             </View>
 
             <TouchableOpacity 
-              style={styles.secondaryButton} 
+              style={[
+                styles.secondaryButton, 
+                { 
+                  backgroundColor: theme.isDark ? theme.colors.background : '#F1F5F9',
+                  borderColor: theme.colors.border,
+                  borderWidth: theme.isDark ? 1 : 0
+                }
+              ]} 
               onPress={() => setIsLogin(!isLogin)}
               activeOpacity={0.8}
             >
-              <Text style={styles.secondaryButtonText}>
+              <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>
                 {isLogin ? 'Crear una cuenta nueva' : 'Ya tengo una cuenta'}
               </Text>
             </TouchableOpacity>
@@ -141,7 +158,6 @@ export const AuthScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F0FDF4', // Fondo verde muy claro
   },
   keyboardView: {
     flex: 1,
@@ -168,63 +184,53 @@ const styles = StyleSheet.create({
   logo: {
     width: 280,
     height: 280,
-    maxWidth: '85%', // Ajustado para permitir un tamaño mayor
-    aspectRatio: 1, // Asegura que siempre mantenga proporción cuadrada
+    maxWidth: '85%',
+    aspectRatio: 1,
     marginBottom: -15,
   },
   title: {
-    fontSize: 30, // Reducido ligeramente para evitar desbordamientos
+    fontSize: 30,
     fontWeight: '900',
-    color: '#15803D', // Verde oscuro moderno
     letterSpacing: -0.5,
     marginTop: -4,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
-    color: '#475569',
     marginTop: 6,
     fontWeight: '500',
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#FFFFFF',
     width: '100%',
-    borderRadius: 24, // Bordes un poco más adaptables
-    padding: 24, // Padding ajustado para pantallas pequeñas
-    shadowColor: '#166534',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 10,
+    elevation: 8,
   },
   welcomeText: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#0F172A',
     marginBottom: 6,
   },
   welcomeSubtext: {
     fontSize: 15,
-    color: '#64748B',
     marginBottom: 30,
     fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
     borderRadius: 16,
     marginBottom: 16,
     paddingHorizontal: 16,
     height: 60,
   },
   inputContainerFocused: {
-    borderColor: 'transparent', // Eliminar el borde al enfocar
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#22C55E',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -237,7 +243,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#0F172A',
     height: '100%',
   },
   eyeIcon: {
@@ -248,24 +253,20 @@ const styles = StyleSheet.create({
     marginBottom: 26,
   },
   forgotPasswordText: {
-    color: '#15803D',
     fontSize: 14,
     fontWeight: '700',
   },
   primaryButton: {
-    backgroundColor: '#22C55E', // Verde brillante moderno
     borderRadius: 16,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#22C55E',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -278,24 +279,21 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E2E8F0',
   },
   dividerText: {
-    color: '#94A3B8',
     paddingHorizontal: 16,
     fontSize: 14,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#F1F5F9',
     borderRadius: 16,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#334155',
     fontSize: 16,
     fontWeight: '700',
   },
 });
+

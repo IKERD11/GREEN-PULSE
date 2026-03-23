@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, Alert, SafeAreaView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { ThingSpeakService } from '../services/ThingSpeakService';
 
 export const ConfigScreen = () => {
   const { theme } = useTheme();
+  const { logout } = useAuth();
   
   // Conexiones Locales variables
   const [wifiEnabled, setWifiEnabled] = useState(true);
   const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   
   // ThingSpeak API variables
   const [channelId, setChannelId] = useState('3306366');
@@ -40,6 +43,40 @@ export const ConfigScreen = () => {
         [{ text: "OK" }]
       );
     }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro de que quieres cerrar sesión?',
+      [
+        {
+          text: 'Cancelar',
+          onPress: () => {},
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar Sesión',
+          onPress: async () => {
+            try {
+              setLoggingOut(true);
+              console.log('Intentando cerrar sesión...');
+              await logout();
+              console.log('Sesión cerrada exitosamente');
+              // La navegación se manejará automáticamente en RootNavigator
+            } catch (error) {
+              console.error('Error al cerrar sesión:', error);
+              setLoggingOut(false);
+              Alert.alert(
+                'Error', 
+                'Hubo un error al cerrar sesión. Por favor intenta de nuevo o contacta al soporte si el problema persiste.'
+              );
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
   return (
@@ -159,6 +196,24 @@ export const ConfigScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Sección 3: Logout */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>CUENTA</Text>
+        </View>
+
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: '#FF3B30', opacity: loggingOut ? 0.5 : 1 }]} 
+          onPress={handleLogout}
+          disabled={loggingOut}
+        >
+          {loggingOut ? (
+            <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />
+          ) : (
+            <Ionicons name="log-out-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+          )}
+          <Text style={styles.logoutButtonText}>{loggingOut ? 'Cerrando sesión...' : 'Cerrar Sesión'}</Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -250,6 +305,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   saveButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginHorizontal: 0,
+  },
+  logoutButtonText: {
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
