@@ -1,0 +1,9 @@
+# EAS Build ignore file
+node_modules
+.expo
+dist
+.git
+.gitignore
+npm-debug.*
+*.jks
+*.pem
