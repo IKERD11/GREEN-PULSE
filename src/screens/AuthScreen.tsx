@@ -218,7 +218,7 @@ export const AuthScreen = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {Platform.OS === 'ios' ? (
         <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
           {content}
@@ -226,7 +226,7 @@ export const AuthScreen = () => {
       ) : (
         <View style={styles.keyboardView}>{content}</View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

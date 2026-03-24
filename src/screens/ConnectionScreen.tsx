@@ -203,7 +203,7 @@ export const ConnectionScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Header */}
@@ -471,7 +471,7 @@ export const ConnectionScreen = () => {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

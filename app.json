@@ -23,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -57,7 +57,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "b69c4b1e-0359-46f8-8cf9-5191212f8d06"
+        "projectId": "3a451ea9-5ef2-473e-b339-ae8f94e22afd"
       }
     }
   }

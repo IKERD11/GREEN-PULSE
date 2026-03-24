@@ -71,7 +71,7 @@ export const DashboardScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Network Status Banner */}
@@ -132,7 +132,7 @@ export const DashboardScreen = () => {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

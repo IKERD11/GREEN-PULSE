@@ -63,7 +63,7 @@ export const ValvesScreen = () => {
   const toggleV2 = () => sendCommand('V2', !v2Open);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
         <View style={styles.header}>
@@ -190,7 +190,7 @@ export const ValvesScreen = () => {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
