@@ -1,6 +1,7 @@
 import { BleManager } from 'react-native-ble-plx';
 import { requestForegroundPermissionsAsync as requestLocationPermissions } from 'expo-location';
 import { Platform, PermissionsAndroid } from 'react-native';
+import { DiagnosticUtil } from '../utils/DiagnosticUtil';
 
 interface BluetoothDevice {
   id: string;
@@ -74,9 +75,15 @@ class BluetoothServiceClass {
     this.isScanning = true;
     this.discoveredDevices.clear();
 
-    // Verificación de disponibilidad de API nativa
-    if (Platform.OS === 'web' || !this.bleManager.startDeviceScan) {
-      console.log('🔎 Escaneando dispositivos (Simulado)');
+    // Verificación de disponibilidad de API nativa y Entorno
+    if (Platform.OS === 'web' || !this.bleManager.startDeviceScan || DiagnosticUtil.isExpoGo()) {
+      const isGo = DiagnosticUtil.isExpoGo();
+      console.log(`🔎 Escaneando dispositivos (Simulado - Razón: ${isGo ? 'Expo Go' : 'API no disponible'})`);
+      
+      if (isGo) {
+        throw new Error('ENTORNO_LIMITADO: El escaneo Bluetooth requiere una compilación nativa (no funciona en Expo Go).');
+      }
+
       await new Promise(resolve => setTimeout(resolve, 2000));
       this.isScanning = false;
       const mockDevices = this.getMockDevices();
@@ -87,7 +94,7 @@ class BluetoothServiceClass {
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
-        throw new Error('Permisos de Bluetooth denegados. No se puede escanear.');
+        throw new Error('PERMISO_DENEGADO: Permisos de Bluetooth denegados. No se puede escanear.');
       }
 
       console.log('🔎 Iniciando escaneo Bluetooth LE REAL...');
@@ -95,8 +102,8 @@ class BluetoothServiceClass {
       // Asegurarse de que el manager está listo
       const state = await this.bleManager.state();
       if (state !== 'PoweredOn') {
-        console.warn(`⚠️ Bluetooth no está encendido (Estado: ${state}). Intenta encenderlo.`);
-        // No lanzamos error para que el usuario pueda encenderlo manualmente después
+        console.warn(`⚠️ Bluetooth no está encendido (Estado: ${state}).`);
+        // Opcional: Podríamos lanzar error aquí, pero el manager lo hará al intentar escanear
       }
 
       this.bleManager.startDeviceScan(null, null, (error, device) => {
@@ -124,9 +131,16 @@ class BluetoothServiceClass {
       console.log(`✅ Escaneo completado. Reales encontrados: ${devices.length}`);
 
       return devices;
-    } catch (error) {
-      console.error('❌ Error crítico en escaneo Bluetooth real:', error);
-      // Fallback a mock solo si falla el nativo para evitar pantalla vacía en desarrollo
+    } catch (error: any) {
+      console.error('❌ Error crítico en escaneo Bluetooth:', error.message);
+      
+      if (error.message && (
+          error.message.includes('ENTORNO_LIMITADO') || 
+          error.message.includes('PERMISO_DENEGADO'))) {
+        throw error;
+      }
+
+      // Fallback a mock solo si falla el nativo inesperadamente
       return this.getMockDevices();
     } finally {
       this.isScanning = false;
