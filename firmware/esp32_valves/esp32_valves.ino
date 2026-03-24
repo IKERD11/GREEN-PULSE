@@ -39,7 +39,7 @@ const long MANUAL_TIMEOUT = 120000;
 WebServer webServer(80);
 BLECharacteristic *pCharacteristicTX;
 unsigned long lastTSUpdate = 0;
-const long TS_INTERVAL = 15000;
+const long TS_INTERVAL = 20000; // Incrementado a 20 segs para evitar rate limits de ThinkSpeak
 
 void updateValves(bool nutrients, bool water) {
   digitalWrite(valveNutrients, nutrients ? HIGH : LOW);
@@ -85,6 +85,21 @@ String handleJSONCommand(String input) {
   return "{\"valvula\":\"" + String(v) + "\",\"estado\":\"" + String(a) + "\",\"mode\":\"MANUAL\",\"status\":\"OK\"}";
 }
 
+bool deviceConnected = false;
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      Serial.println("Cliente BLE conectado!");
+    };
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+      Serial.println("Cliente BLE desconectado. Reiniciando Advertising...");
+      // Reanudar la publicidad BLE para que otros dispositivos puedan conectarse
+      pServer->getAdvertising()->start();
+    }
+};
+
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pc) {
       String val = String(pc->getValue().c_str());
@@ -117,27 +132,46 @@ void setup() {
 
   WiFi.begin(ssid, password);
   Serial.print("Conectando WiFi");
-  while (WiFi.status() != WL_CONNECTED) { delay(200); Serial.print("."); }
-  Serial.println("\nWiFi OK");
-  Serial.print("IP: "); Serial.println(WiFi.localIP());
+  int retries = 0;
+  // Timeout de 10 segundos para no bloquear el dispositivo
+  while (WiFi.status() != WL_CONNECTED && retries < 40) { 
+    delay(250); 
+    Serial.print("."); 
+    retries++; 
+  }
 
   display.clearDisplay();
   display.setTextSize(1);
   display.setCursor(0, 10);
-  display.println("SISTEMA: EN LINEA");
-  display.setCursor(0, 30);
-  display.print("IP: ");
-  display.println(WiFi.localIP());
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi OK");
+    Serial.print("IP: "); Serial.println(WiFi.localIP());
+    display.println("SISTEMA: EN LINEA");
+    display.setCursor(0, 30);
+    display.print("IP: ");
+    display.println(WiFi.localIP());
+  } else {
+    Serial.println("\nWiFi Falló. Iniciando modo offline.");
+    display.println("SISTEMA: OFFLINE");
+    display.setCursor(0, 30);
+    display.println("Sin red WiFi");
+  }
+
   display.setCursor(0, 50);
-  display.println("Esperando App...");
+  display.println("Iniciando BLE...");
   display.display();
-  delay(5000);
+  delay(3000);
 
   webServer.on("/control", HTTP_POST, handleControl);
   webServer.begin();
 
   BLEDevice::init("GREEN_PULSE_SMART");
+  // Aumentar tamaño MTU a 512 bytes para evitar que el JSON se fragmente
+  BLEDevice::setMTU(512);
+
   BLEServer *pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
   BLEService *pService = pServer->createService(SERVICE_UUID);
   BLECharacteristic *px = pService->createCharacteristic(CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
   px->setCallbacks(new MyCallbacks());
@@ -150,6 +184,15 @@ void setup() {
 
 void loop() {
   webServer.handleClient();
+
+  // Intento periódico de reconexión de WiFi si se llega a perder
+  static unsigned long lastWiFiCheck = 0;
+  if (WiFi.status() != WL_CONNECTED && (millis() - lastWiFiCheck > 30000)) {
+    Serial.println("Conexión perdida. Intentando reconectar WiFi...");
+    WiFi.disconnect();
+    WiFi.begin(ssid, password);
+    lastWiFiCheck = millis();
+  }
 
   static unsigned long lastReading = 0;
   if (millis() - lastReading > 2000) {
