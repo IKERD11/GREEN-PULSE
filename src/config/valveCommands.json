@@ -1,0 +1,25 @@
+{
+  "commands": {
+    "nutrient_on": {
+      "valvula": "V1",
+      "accion": "ON"
+    },
+    "nutrient_off": {
+      "valvula": "V1",
+      "accion": "OFF"
+    },
+    "water_on": {
+      "valvula": "V2",
+      "accion": "ON"
+    },
+    "water_off": {
+      "valvula": "V2",
+      "accion": "OFF"
+    }
+  },
+  "timeouts": {
+    "manual_mode_ms": 120000,
+    "sensor_reading_interval_ms": 2000,
+    "thingspeak_update_interval_ms": 15000
+  }
+}

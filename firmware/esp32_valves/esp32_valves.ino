@@ -10,8 +10,8 @@
 #include <Adafruit_SSD1306.h>
 #include <ArduinoJson.h>
 
-const char* ssid = "OPPOA57";
-const char* password = "123456798V";
+const char* ssid = "&TNMCuautla";
+const char* password = "Internet";
 
 String apiKey = "OTB9VUDFDUMP9CTR";
 const char* serverUrl = "http://api.thingspeak.com/update";
