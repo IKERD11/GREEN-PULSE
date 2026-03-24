@@ -87,9 +87,9 @@ String handleJSONCommand(String input) {
 
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pc) {
-      std::string val = pc->getValue();
+      String val = String(pc->getValue().c_str());
       if (val.length() > 0) {
-        String res = handleJSONCommand(String(val.c_str()));
+        String res = handleJSONCommand(val);
         pCharacteristicTX->setValue(res.c_str());
         pCharacteristicTX->notify();
       }
