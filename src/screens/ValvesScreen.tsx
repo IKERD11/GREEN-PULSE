@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, SafeAreaView, useWindowDimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { bleService } from '../services/BleService';
+import { BluetoothService } from '../services/BluetoothService';
 import { WiFiService } from '../services/WiFiService';
 import { TextInput, Alert, ActivityIndicator } from 'react-native';
 
@@ -37,8 +37,8 @@ export const ValvesScreen = () => {
     let success = false;
 
     try {
-      if (bleService.connectedDevice) {
-        await bleService.sendValveCommand(valve, action);
+      if (BluetoothService.connectedDeviceId) {
+        await BluetoothService.sendValveCommand(valve, action);
         success = true;
       } else {
         success = await WiFiService.sendValveCommand(esp32Ip, valve, action);
@@ -86,7 +86,7 @@ export const ValvesScreen = () => {
             />
           </View>
 
-          {!bleService.connectedDevice && !isAutoMode && (
+          {!BluetoothService.connectedDeviceId && !isAutoMode && (
             <View style={{ marginBottom: 16 }}>
               <Text style={{ fontSize: 11, marginBottom: 4, color: theme.colors.textSecondary }}>IP ESP32:</Text>
               <TextInput
