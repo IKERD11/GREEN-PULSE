@@ -1,4 +1,7 @@
+import { Platform, PermissionsAndroid } from 'react-native';
 import * as Location from 'expo-location';
+import WifiManager from 'react-native-wifi-reborn';
+import { DiagnosticUtil } from '../utils/DiagnosticUtil';
 
 interface WiFiNetwork {
   id: string;
@@ -8,11 +11,9 @@ interface WiFiNetwork {
 
 class WiFiServiceClass {
   private isScanning = false;
-  private isNativeAvailable = false;
 
   constructor() {
-    console.log('📡 WiFiService inicializado (usando fallback simulado)');
-    this.isNativeAvailable = false;
+    console.log('📡 WiFiService inicializado');
   }
 
   /**
@@ -20,20 +21,30 @@ class WiFiServiceClass {
    */
   async requestPermissions(): Promise<boolean> {
     try {
-      // Solicitar permiso de ubicación (requerido para escanear WiFi en Android)
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Permiso de Ubicación',
+            message: 'Green Pulse necesita acceso a tu ubicación para buscar redes WiFi.',
+            buttonNeutral: 'Preguntar luego',
+            buttonNegative: 'Cancelar',
+            buttonPositive: 'OK',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      }
+      
       const { status } = await Location.requestForegroundPermissionsAsync();
       return status === 'granted';
     } catch (error) {
       console.warn('⚠️ Error solicitando permisos:', error);
-      // En Expo Go, los permisos pueden fallar en desarrollo - devolver fallback
-      return true;
+      return false;
     }
   }
 
   /**
    * Escanea redes WiFi disponibles
-   * Nota: Esta es una solución simulada con datos más realistas
-   * Para acceso real a redes WiFi, se requeriría compilación nativa
    */
   async scanNetworks(): Promise<WiFiNetwork[]> {
     if (this.isScanning) {
@@ -44,25 +55,48 @@ class WiFiServiceClass {
     this.isScanning = true;
 
     try {
-      // Solicitar permisos
-      const hasPermission = await this.requestPermissions();
-      if (!hasPermission) {
-        console.warn('⚠️ Permisos denegados, usando redes simuladas');
+      // Diagnóstico previo
+      if (DiagnosticUtil.isExpoGo()) {
+        console.warn('⚠️ Escaneo WiFi real no disponible en Expo Go');
+        throw new Error('ENTORNO_LIMITADO: El escaneo WiFi requiere una compilación nativa (no funciona en Expo Go).');
       }
 
-      // En Expo Go, no hay acceso a APIs WiFi nativas
-      // Se requiere compilación con eas build para acceso real
-      console.log('📡 Escaneando redes WiFi (modo simulado en Expo Go)');
-      
-      // Simular delay de escaneo
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const hasPermission = await this.requestPermissions();
+      if (!hasPermission) {
+        throw new Error('PERMISO_DENEGADO: Permisos de ubicación denegados para escaneo WiFi');
+      }
 
-      const networks = this.getMockNetworks();
-      console.log(`📡 Redes encontradas: ${networks.length}`);
+      const locationEnabled = await DiagnosticUtil.isLocationEnabled();
+      if (!locationEnabled && Platform.OS === 'android') {
+        throw new Error('UBICACION_APAGADA: Por favor activa la ubicación para escanear redes WiFi');
+      }
+
+      console.log('📡 Escaneando redes WiFi reales...');
       
+      // En dispositivos reales con el modulo nativo
+      const wifiList = await WifiManager.loadWifiList();
+      
+      const networks: WiFiNetwork[] = wifiList.map((network, index) => ({
+        id: network.BSSID || index.toString(),
+        name: network.SSID || 'Red sin nombre',
+        strength: network.level || 0,
+      }));
+
+      console.log(`📡 Redes encontradas: ${networks.length}`);
       return networks;
-    } catch (error) {
-      console.warn('⚠️ Error escaneando redes:', error);
+    } catch (error: any) {
+      console.warn('⚠️ Error escaneando redes:', error.message);
+      
+      // Si el error es por entorno limitado o permisos, lo lanzamos para que la UI lo maneje
+      if (error.message && (
+          error.message.includes('ENTORNO_LIMITADO') || 
+          error.message.includes('PERMISO_DENEGADO') || 
+          error.message.includes('UBICACION_APAGADA'))) {
+        throw error;
+      }
+
+      // Solo si es un error técnico inesperado, intentamos mock para no romper la UI en desarrollo local no-Expo
+      console.log('Falling back to mocks due to unexpected error');
       return this.getMockNetworks();
     } finally {
       this.isScanning = false;
@@ -70,29 +104,27 @@ class WiFiServiceClass {
   }
 
   /**
-   * Obtiene redes simuladas con datos realistas
+   * Obtiene redes simuladas (solo para fallback/desarrollo)
    */
   private getMockNetworks(): WiFiNetwork[] {
     return [
-      { id: '1', name: 'Red_Invernadero', strength: 95 },
-      { id: '2', name: 'RED_SENSOR_PRINCIPAL', strength: 82 },
-      { id: '3', name: 'WiFi_Invitado', strength: 68 },
-      { id: '4', name: 'RED_IoT_2.4GHz', strength: 75 },
-      { id: '5', name: 'ConectaBien', strength: 60 },
+      { id: '1', name: 'Red_Invernadero (Simulada)', strength: 95 },
+      { id: '2', name: 'RED_SENSOR_PRINCIPAL (Simulada)', strength: 82 },
+      { id: '3', name: 'WiFi_Invitado (Simulada)', strength: 68 },
     ];
   }
 
   /**
    * Conecta a una red WiFi específica
-   * Nota: Requiere permisos especiales y compilación nativa
    */
-  async connectToNetwork(networkName: string): Promise<boolean> {
+  async connectToNetwork(ssid: string, password?: string): Promise<boolean> {
     try {
-      // En una app nativa real:
-      // Android: WifiManager.addNetwork() + enableNetwork()
-      // iOS: NEHotspotConfiguration + Hot Spot Helper
-      
-      console.log(`📡 Conectando a red: ${networkName}`);
+      console.log(`📡 Conectando a red: ${ssid}`);
+      if (password) {
+        await WifiManager.connectToProtectedSSID(ssid, password, false, false);
+      } else {
+        await WifiManager.connectToSSID(ssid);
+      }
       return true;
     } catch (error) {
       console.error('❌ Error conectando:', error);
@@ -105,11 +137,45 @@ class WiFiServiceClass {
    */
   async getCurrentNetwork(): Promise<string | null> {
     try {
-      // Implementación de fallback
-      return null;
+      const ssid = await WifiManager.getCurrentWifiSSID();
+      return ssid;
     } catch (error) {
       console.error('❌ Error obteniendo red actual:', error);
       return null;
+    }
+  }
+
+  /**
+   * Envía un comando de válvula al ESP32 vía HTTP
+   * @param ip Dirección IP del ESP32
+   * @param valve "V1" (Nutrientes) o "V2" (Agua)
+   * @param action "ON" o "OFF"
+   */
+  async sendValveCommand(ip: string, valve: 'V1' | 'V2', action: 'ON' | 'OFF'): Promise<boolean> {
+    try {
+      const url = `http://${ip}/control`;
+      const body = JSON.stringify({ valvula: valve, accion: action });
+      
+      console.log(`🌐 WiFi: Enviando POST a ${url}: ${body}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('🌐 WiFi: Respuesta recibida:', data);
+      return data.status === 'OK';
+    } catch (error) {
+      console.error('❌ Error enviando comando WiFi:', error);
+      return false;
     }
   }
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { AnalysisScreen } from '../screens/AnalysisScreen';
@@ -13,9 +14,15 @@ const Tab = createBottomTabNavigator();
 
 const Header = () => {
   const { theme, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.headerContainer, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.border }]}>
+    <View style={[styles.headerContainer, { 
+      backgroundColor: theme.colors.background, 
+      borderBottomColor: theme.colors.border,
+      paddingTop: insets.top,
+      height: 60 + insets.top
+    }]}>
       <View style={styles.headerTitleContainer}>
         {/* Usamos MaterialCommunityIcons para el icono de planta con wifi si existe, o combinamos */}
         <MaterialCommunityIcons name="sprout" size={24} color={theme.colors.primary} style={{ marginRight: 8 }} />
@@ -35,6 +42,7 @@ const Header = () => {
 
 const TabNavigator = () => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -53,8 +61,8 @@ const TabNavigator = () => {
             shadowOffset: { width: 0, height: -2 },
             shadowOpacity: theme.isDark ? 0.3 : 0.1,
             shadowRadius: 4,
-            height: 60,
-            paddingBottom: 8,
+            height: 60 + insets.bottom,
+            paddingBottom: 8 + insets.bottom,
             paddingTop: 8,
           },
           tabBarLabelStyle: {
@@ -95,7 +103,6 @@ const TabNavigator = () => {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

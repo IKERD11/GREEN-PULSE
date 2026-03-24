@@ -92,7 +92,7 @@ export const AnalysisScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         <View style={styles.header}>
@@ -206,7 +206,7 @@ export const AnalysisScreen = () => {
         </TouchableOpacity>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

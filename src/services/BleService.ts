@@ -1,5 +1,6 @@
 import { BleManager, Device, BleError, Characteristic } from 'react-native-ble-plx';
 import { PermissionsAndroid, Platform } from 'react-native';
+import { DiagnosticUtil } from '../utils/DiagnosticUtil';
 
 class BleService {
   manager: BleManager;
@@ -10,10 +11,21 @@ class BleService {
   RX_CHARACTERISTIC = '0000ffe2-0000-1000-8000-00805f9b34fb';
 
   constructor() {
-    this.manager = new BleManager();
+    try {
+      if (Platform.OS !== 'web') {
+        this.manager = new BleManager();
+      } else {
+        this.manager = {} as BleManager;
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudo inicializar BleManager (quizá dependencias nativas faltantes)');
+      this.manager = {} as BleManager;
+    }
   }
 
   async requestPermissions(): Promise<boolean> {
+    if (Platform.OS === 'web') return true;
+    
     if (Platform.OS === 'android') {
       const apiLevel = parseInt(Platform.Version.toString(), 10);
       
@@ -35,7 +47,15 @@ class BleService {
     return true; // iOS se soluciona en Info.plist o app.json
   }
 
-  scanAndConnect(onDeviceFound: (device: Device) => void, filterName = "AGRO_SENSOR") {
+  async scanAndConnect(onDeviceFound: (device: Device) => void, filterName = "AGRO_SENSOR") {
+    // Diagnóstico previo
+    if (DiagnosticUtil.isExpoGo()) {
+      console.warn('⚠️ BleService: Escaneo real no disponible en Expo Go');
+      return;
+    }
+
+    if (!this.manager.startDeviceScan) return;
+
     this.manager.startDeviceScan(null, null, (error, device) => {
       if (error) {
         console.error("Error al escanear BLE:", error);
@@ -51,20 +71,20 @@ class BleService {
   }
 
   async connectToDevice(device: Device) {
+    if (DiagnosticUtil.isExpoGo()) return;
+    
     try {
       const connected = await device.connect();
       this.connectedDevice = connected;
       await connected.discoverAllServicesAndCharacteristics();
       console.log('Dispositivo conectado:', connected.name);
-      
-      // Iniciar el monitoreo
     } catch (e) {
       console.error('Error al conectar:', e);
     }
   }
 
   startReceivingData(onDataParsed: (data: any) => void) {
-    if (!this.connectedDevice) return;
+    if (!this.connectedDevice || DiagnosticUtil.isExpoGo()) return;
 
     this.connectedDevice.monitorCharacteristicForService(
       this.SERVICE_UUID,
@@ -77,7 +97,6 @@ class BleService {
         if (characteristic?.value) {
           const decodedValue = atob(characteristic.value);
           console.log("Dato crudo:", decodedValue);
-          // Intenta parsear si el arduino manda un JSON, ej: {"ph": 6.0, "salinity": 100...}
           try {
             const parsed = JSON.parse(decodedValue);
             onDataParsed(parsed);
@@ -90,8 +109,8 @@ class BleService {
   }
 
   async sendCommand(command: string) {
-    if (!this.connectedDevice) {
-      console.warn("Comando no enviado. No hay dispositivo BLE conectado.");
+    if (!this.connectedDevice || DiagnosticUtil.isExpoGo()) {
+      console.warn("Comando no enviado. No hay dispositivo BLE conectado o entorno limitado.");
       return;
     }
     const base64Payload = btoa(command);
@@ -102,14 +121,25 @@ class BleService {
     );
   }
 
+  /**
+   * Envía un comando de válvula específico en formato JSON
+   */
+  async sendValveCommand(valve: 'V1' | 'V2', action: 'ON' | 'OFF') {
+    const command = JSON.stringify({ valvula: valve, accion: action });
+    console.log(`🔵 BLE: Enviando comando: ${command}`);
+    return this.sendCommand(command);
+  }
+
   disconnect() {
-    this.manager.destroy();
+    if (this.manager.destroy) {
+      this.manager.destroy();
+    }
   }
 }
 
 export const bleService = new BleService();
 
-// Utilitarios básicos para Base64 en un entorno JS puro de RN (Si no usan buffer)
+// Utilitarios básicos para Base64
 function atob(b64: string): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
   let str = String(b64).replace(/[=]+$/, '');

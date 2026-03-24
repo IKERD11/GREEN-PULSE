@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, Platform, SafeAreaView } from 'react-native';
-import { SensorService, SensorData } from '../services/SensorService';
-import { LocalStorageService } from '../services/LocalStorageService';
-import { MockSensorService } from '../services/MockSensorService';
+import { ThingSpeakService } from '../services/ThingSpeakService';
+import { bleService } from '../services/BleService';
 import { AutoAuthService } from '../services/AutoAuthService';
+import { SensorData } from '../services/SensorService';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
@@ -13,78 +13,53 @@ export const DashboardScreen = () => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Auto-login al inicio
-    const initializeAuth = async () => {
-      console.log('Inicializando autenticación...');
-      const result = await AutoAuthService.autoLogin();
-      if (result.success) {
-        console.log('✅ Autenticación completada, iniciando simulación...');
-        // Iniciar simulación después de autenticarse
-        if (!MockSensorService.isRunning) {
-          MockSensorService.startSimulation(30000);
+    // 1. Escuchar datos por Bluetooth (TIEMPO REAL 0ms)
+    const setupBleListener = () => {
+      bleService.startReceivingData((data) => {
+        console.log('🔵 Datos recibidos por BLE:', data);
+        // El ESP32 manda {conductividad, salinidad, humedad, ph}
+        if (data.conductividad !== undefined) {
+          setLatestData({
+            ph: data.ph || 0,
+            conductivity: data.conductividad || 0,
+            salinity: data.salinidad || 0,
+            humidity: data.humedad || 0
+          } as any);
         }
-      } else {
-        console.warn('⚠️ Auto-login falló, usando almacenamiento local');
-        // Iniciar simulación de todas formas
-        if (!MockSensorService.isRunning) {
-          MockSensorService.startSimulation(30000);
-        }
+      });
+    };
+
+    // 2. Cargar datos desde ThingSpeak (NUBE)
+    const fetchThingSpeakData = async () => {
+      const lastFeed = await ThingSpeakService.getLastData();
+      if (lastFeed) {
+        console.log('🌐 Datos recibidos de ThingSpeak:', lastFeed);
+        setLatestData({
+          ph: parseFloat(lastFeed.field3) || 0,
+          conductivity: parseFloat(lastFeed.field1) || 0,
+          salinity: parseFloat(lastFeed.field2) || 0,
+          humidity: parseFloat(lastFeed.field4) || 0,
+          created_at: lastFeed.created_at
+        } as any);
       }
     };
 
-    initializeAuth();
+    setupBleListener();
+    fetchThingSpeakData();
 
-    // Cargar datos: primero del almacenamiento local, luego de Supabase
-    const loadData = async () => {
-      try {
-        // Intentar obtener del almacenamiento local primero
-        const localData = await LocalStorageService.getLatest(1);
-        if (localData.length > 0) {
-          setLatestData(localData[0]);
-        }
+    // Intervalo de actualización de la nube (cada 20s para no saturar API)
+    const tsInterval = setInterval(fetchThingSpeakData, 20000);
 
-        // Luego de Supabase si está disponible
-        SensorService.getHistory(1).then((data) => {
-          if (data.length > 0) setLatestData(data[0]);
-        }).catch(console.error);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      }
-    };
-
-    loadData();
-
-    // Suscribirse a Realtime
-    const unsubscribe = SensorService.subscribeToNewData((newRecord) => {
-      setLatestData(newRecord);
-    });
-
-    // Escuchar cambios del localStorage cada 5 segundos
-    const localStorageInterval = setInterval(async () => {
-      const localData = await LocalStorageService.getLatest(1);
-      if (localData.length > 0) {
-        setLatestData(localData[0]);
-      }
-    }, 5000);
-
+    // Animación de pulso
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 0.4,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
       ])
     ).start();
 
     return () => {
-      unsubscribe();
-      clearInterval(localStorageInterval);
+      clearInterval(tsInterval);
     };
   }, []);
 
@@ -96,7 +71,7 @@ export const DashboardScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Network Status Banner */}
@@ -157,7 +132,7 @@ export const DashboardScreen = () => {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
