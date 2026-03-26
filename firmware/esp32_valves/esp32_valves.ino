@@ -25,7 +25,7 @@ const int valveWater = 27;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 #define SERVICE_UUID           "0000ffe0-0000-1000-8000-00805f9b34fb"
-#define CHARACTERISTIC_UUID_RX "0000ffe2-0000-1000-8000-00805f9b34fb" 
+#define CHARACTERISTIC_UUID_RX "0000ffe2-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID_TX "0000ffe1-0000-1000-8000-00805f9b34fb"
 
 float conductividad = 0, salinidad = 0, humedad = 0, ph = 0;

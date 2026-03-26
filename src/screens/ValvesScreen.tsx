@@ -26,7 +26,7 @@ export const ValvesScreen = () => {
     setIsAutoMode(prev => !prev);
     if (!isAutoMode) {
       // Si volvemos a auto, apagar valves localmente (el ESP32 lo hará tras timeout)
-      setV1Open(false);
+      setV1Open(false); 
       setV2Open(false);
     }
   };

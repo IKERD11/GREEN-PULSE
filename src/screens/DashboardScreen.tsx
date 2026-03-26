@@ -35,10 +35,10 @@ export const DashboardScreen = () => {
       if (lastFeed) {
         console.log('🌐 Datos recibidos de ThingSpeak:', lastFeed);
         setLatestData({
-          ph: parseFloat(lastFeed.field3) || 0,
-          conductivity: parseFloat(lastFeed.field1) || 0,
-          salinity: parseFloat(lastFeed.field2) || 0,
-          humidity: parseFloat(lastFeed.field4) || 0,
+          ph: parseFloat(lastFeed.field1) || 0,
+          conductivity: parseFloat(lastFeed.field2) || 0,
+          humidity: parseFloat(lastFeed.field3) || 0,
+          salinity: parseFloat(lastFeed.field4) || 0,
           created_at: lastFeed.created_at
         } as any);
       }
@@ -63,7 +63,7 @@ export const DashboardScreen = () => {
     };
   }, []);
 
-  const isSystemOk = latestData ? (latestData.ph >= 5.5 && latestData.ph <= 6.5) : true;
+  const isConnected = latestData !== null;
 
   const getProgressWidth = (value: number, max: number) => {
     const clamped = Math.min(Math.max(value, 0), max);
@@ -81,10 +81,10 @@ export const DashboardScreen = () => {
             <View style={styles.networkStatusContainer}>
               <Animated.View style={[
                 styles.pulseDot, 
-                { backgroundColor: isSystemOk ? theme.colors.primary : theme.colors.error, opacity: pulseAnim }
+                { backgroundColor: isConnected ? theme.colors.primary : theme.colors.border, opacity: pulseAnim }
               ]} />
               <Text style={[styles.networkTitle, { color: theme.colors.text }]}>
-                {isSystemOk ? 'SISTEMA OK' : 'ALERTA'}
+                {isConnected ? 'EN LÍNEA' : 'CONECTANDO...'}
               </Text>
             </View>
           </View>
