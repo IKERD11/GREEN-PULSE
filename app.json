@@ -57,8 +57,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "3a451ea9-5ef2-473e-b339-ae8f94e22afd"
+        "projectId": "eb98e3c5-bbb4-4903-9a02-9fe3c9fcd003"
       }
-    }
+    },
+    "owner": "ikdopigu"
   }
 }

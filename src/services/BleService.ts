@@ -18,7 +18,7 @@ class BleService {
         this.manager = {} as BleManager;
       }
     } catch (e) {
-      console.warn('⚠️ No se pudo inicializar BleManager (quizá dependencias nativas faltantes)');
+      console.warn('No se pudo inicializar BleManager (quizá dependencias nativas faltantes)');
       this.manager = {} as BleManager;
     }
   }
@@ -50,7 +50,7 @@ class BleService {
   async scanAndConnect(onDeviceFound: (device: Device) => void, filterName = "AGRO_SENSOR") {
     // Diagnóstico previo
     if (DiagnosticUtil.isExpoGo()) {
-      console.warn('⚠️ BleService: Escaneo real no disponible en Expo Go');
+      console.warn(' BleService: Escaneo real no disponible en Expo Go');
       return;
     }
 
@@ -77,6 +77,8 @@ class BleService {
       const connected = await device.connect();
       this.connectedDevice = connected;
       await connected.discoverAllServicesAndCharacteristics();
+      // Solicitar MTU grande para evitar fragmentación de los JSON enviados por el ESP32
+      await connected.requestMTU(512);
       console.log('Dispositivo conectado:', connected.name);
     } catch (e) {
       console.error('Error al conectar:', e);

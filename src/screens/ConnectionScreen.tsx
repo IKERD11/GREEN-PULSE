@@ -181,7 +181,7 @@ export const ConnectionScreen = () => {
     try {
       // Intentar vía Bluetooth si hay un dispositivo seleccionado
       if (connectedDevice) {
-        await bleService.sendValveCommand(valve, action);
+        await BluetoothService.sendValveCommand(valve, action);
         success = true; // BLE es reactivo/notificado
       } else {
         // Intentar vía WiFi usando la IP manual

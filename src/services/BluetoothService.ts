@@ -14,6 +14,10 @@ class BluetoothServiceClass {
   private bleManager: BleManager;
   private isScanning = false;
   private discoveredDevices: Map<string, BluetoothDevice> = new Map();
+  public connectedDeviceId: string | null = null;
+  public SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+  public TX_CHARACTERISTIC = '0000ffe1-0000-1000-8000-00805f9b34fb';
+  public RX_CHARACTERISTIC = '0000ffe2-0000-1000-8000-00805f9b34fb';
 
   constructor() {
     try {
@@ -170,6 +174,9 @@ class BluetoothServiceClass {
       console.log(`🔗 Conectando real a ${deviceName}...`);
       const device = await this.bleManager.connectToDevice(deviceId);
       await device.discoverAllServicesAndCharacteristics();
+      // Solicitar MTU grande para evitar fragmentación de los JSON del ESP32
+      await device.requestMTU(512);
+      this.connectedDeviceId = deviceId;
       console.log(`✅ Conexión establecida con ${deviceName}`);
       return true;
     } catch (error) {
@@ -185,6 +192,7 @@ class BluetoothServiceClass {
 
     try {
       await this.bleManager.cancelDeviceConnection(deviceId);
+      this.connectedDeviceId = null;
       console.log(`✅ Desconectado de dispositivo real`);
       return true;
     } catch (error) {
@@ -199,6 +207,22 @@ class BluetoothServiceClass {
     ];
   }
 
+  async sendValveCommand(valve: 'V1' | 'V2', action: 'ON' | 'OFF') {
+    if (!this.connectedDeviceId || Platform.OS === 'web' || DiagnosticUtil.isExpoGo()) {
+      console.warn("Comando no enviado. No hay dispositivo BLE conectado o estás en Expo Go.");
+      return;
+    }
+    const command = JSON.stringify({ valvula: valve, accion: action });
+    console.log(`🔵 BLE: Enviando comando unificado: ${command}`);
+    const base64Payload = btoaBluetoothService(command);
+    await this.bleManager.writeCharacteristicWithResponseForDevice(
+      this.connectedDeviceId,
+      this.SERVICE_UUID,
+      this.RX_CHARACTERISTIC,
+      base64Payload
+    );
+  }
+
   async destroy(): Promise<void> {
     if (Platform.OS === 'web' || !this.bleManager.destroy) return;
     try {
@@ -207,6 +231,19 @@ class BluetoothServiceClass {
       console.error('❌ Error destruyendo BleManager:', error);
     }
   }
+}
+
+function btoaBluetoothService(str: string): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  let output = '';
+  for (let block, charCode, idx = 0, map = chars; str.charAt(idx | 0) || (map = '=', idx % 1); output += map.charAt(63 & block >> 8 - idx % 1 * 8)) {
+    charCode = str.charCodeAt(idx += 3/4);
+    if (charCode > 0xFF) {
+      throw new Error("'btoa' failed");
+    }
+    block = block! << 8 | charCode;
+  }
+  return output;
 }
 
 export const BluetoothService = new BluetoothServiceClass();
